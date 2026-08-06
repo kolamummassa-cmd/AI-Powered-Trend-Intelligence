@@ -8,6 +8,5 @@
 # 'config.settings.dev' or 'config.settings.prod' directly. Safe to
 # delete manually once this repo is on your own machine/CI.
 raise ImportError(
-    "config.settings is deprecated. Use config.settings.dev or "
-    "config.settings.prod instead."
+    "config.settings is deprecated. Use config.settings.dev or " "config.settings.prod instead."
 )
