@@ -12,21 +12,7 @@ AI: OpenAI + Claude behind a provider abstraction (`backend/ai_providers/`)
 
 ## Local development
 
-Prerequisites: Docker, or Python 3.11+ and Node 22+ if running services natively.
-
-### Option A — Docker Compose (recommended)
-
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
-docker compose up --build
-```
-
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/api/v1/health/
-- Django admin: http://localhost:8000/admin/
-
-### Option B — run services natively
+Prerequisites: Python 3.11+, Node 22+, PostgreSQL, Redis. Everything runs natively — no Docker.
 
 Backend:
 ```bash
@@ -53,6 +39,17 @@ celery -A config worker -l info
 celery -A config beat -l info
 ```
 
+## Deployment
+
+Deployed to Render as native (non-Docker) services, defined in `render.yaml`:
+`trend-intelligence-backend` (Django/gunicorn web service), `trend-intelligence-celery-worker`
+and `trend-intelligence-celery-beat` (background workers), `trend-intelligence-redis`
+(managed Redis), and `trend-intelligence-frontend` (Next.js web service). Postgres is
+provisioned from the `databases:` block. In the Render dashboard: New → Blueprint →
+point at this repo → Render reads `render.yaml` and creates all five resources. Env vars
+marked `sync: false` (API keys, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `NEXT_PUBLIC_API_URL`)
+need to be filled in manually after the first deploy, once you know the actual service URLs.
+
 ## Testing & linting
 
 ```bash
@@ -75,4 +72,4 @@ docs/       Architecture roadmap and any future ADRs
 
 ## Status
 
-Phase 0 (foundation) complete: settings split by environment, soft-delete/audit base model, health check endpoint wired end-to-end between frontend and backend, Docker Compose, CI pipeline. No product features yet — see the roadmap for build order.
+Phase 0 (foundation) complete: settings split by environment, soft-delete/audit base model, health check endpoint wired end-to-end between frontend and backend, native Render deployment config, CI pipeline. No product features yet — see the roadmap for build order.

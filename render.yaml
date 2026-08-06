@@ -1,0 +1,120 @@
+databases:
+  - name: trend-intelligence-db
+    plan: free
+    databaseName: trend_intelligence
+    user: trend_intelligence
+
+services:
+  # Django API
+  - type: web
+    name: trend-intelligence-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements/prod.txt && python manage.py collectstatic --noinput"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    healthCheckPath: /api/v1/health/
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trend-intelligence-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: trend-intelligence-redis
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        sync: false # set to your Render backend hostname after first deploy
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false # set to your Render frontend URL after first deploy
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: AI_PROVIDER
+        value: claude
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+  # Celery worker — processes trend ingestion, AI analysis, content generation
+  - type: worker
+    name: trend-intelligence-celery-worker
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements/prod.txt"
+    startCommand: "celery -A config worker -l info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trend-intelligence-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: trend-intelligence-redis
+          property: connectionString
+      - key: AI_PROVIDER
+        value: claude
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # Celery beat — scheduled trend-source polling (Phase 2+)
+  - type: worker
+    name: trend-intelligence-celery-beat
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements/prod.txt"
+    startCommand: "celery -A config beat -l info"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trend-intelligence-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: trend-intelligence-redis
+          property: connectionString
+
+  # Redis — Celery broker/result backend
+  - type: redis
+    name: trend-intelligence-redis
+    plan: free
+    ipAllowList: []
+
+  # Next.js frontend
+  - type: web
+    name: trend-intelligence-frontend
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm run start"
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # set to https://trend-intelligence-backend.onrender.com/api/v1 after first deploy
