@@ -60,10 +60,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      # Uses `npm install` rather than `npm ci` until package-lock.json is
-      # committed (first `npm install` run locally generates it — commit
-      # it after that and switch this to `npm ci` for reproducible installs).
-      - run: npm install --no-audit --no-fund
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npx tsc --noEmit
       - run: npm run build
