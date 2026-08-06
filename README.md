@@ -12,7 +12,15 @@ AI: OpenAI + Claude behind a provider abstraction (`backend/ai_providers/`)
 
 ## Local development
 
-Prerequisites: Python 3.11+, Node 22+, PostgreSQL, Redis. Everything runs natively — no Docker.
+Prerequisites: Python 3.11+, Node 22+. Everything runs natively — no Docker.
+
+Quickest path: `./scripts/dev.sh` runs backend + frontend together in one terminal (installs
+dependencies on first run). See below for the equivalent step-by-step commands.
+
+By default, dev uses SQLite (no Postgres install needed) and runs Celery tasks synchronously,
+in-process (`CELERY_TASK_ALWAYS_EAGER=True` in `config/settings/dev.py`) — so trend polling
+works with zero extra services running. PostgreSQL and Redis are only required for
+production-parity testing or once you want to run a real Celery worker/beat locally.
 
 Backend:
 ```bash
@@ -32,12 +40,30 @@ npm install
 npm run dev
 ```
 
-Celery (needs Redis running):
+Celery, for real async/scheduled behaviour (needs Redis running and
+`CELERY_TASK_ALWAYS_EAGER=False` in your `.env`):
 ```bash
 cd backend
 celery -A config worker -l info
 celery -A config beat -l info
 ```
+
+## Trend monitoring
+
+Platforms (Google Trends, specific subreddits, RSS feeds) are rows in the `Platform` table,
+each pointing at a registered adapter (`backend/apps/trend_sources/adapters.py`). To try it locally:
+
+```bash
+cd backend
+python manage.py seed_platforms   # creates the starter set of platforms
+python manage.py poll_now         # fetches from every active platform immediately
+```
+
+`poll_now --platform <slug>` polls just one. In production, Celery Beat calls
+`poll_due_platforms` every 5 minutes, which only fans out to platforms whose own
+`poll_interval_minutes` has actually elapsed. Reddit requires `REDDIT_CLIENT_ID` /
+`REDDIT_CLIENT_SECRET` (a "script" app at reddit.com/prefs/apps) to be set in `.env`;
+Google Trends and RSS work with no credentials.
 
 ## Deployment
 
@@ -72,4 +98,6 @@ docs/       Architecture roadmap and any future ADRs
 
 ## Status
 
-Phase 0 (foundation) complete: settings split by environment, soft-delete/audit base model, health check endpoint wired end-to-end between frontend and backend, native Render deployment config, CI pipeline. No product features yet — see the roadmap for build order.
+Phase 0 (foundation), Phase 1 (authentication — email + Google OAuth, JWT), and Phase 2
+(trend engine — modular platform adapters, dedup, trend feed API) are complete. See the
+roadmap for build order and what's next.

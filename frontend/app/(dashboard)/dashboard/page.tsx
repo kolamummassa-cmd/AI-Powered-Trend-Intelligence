@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/features/auth/context/auth-context";
@@ -19,18 +21,33 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <Card className="max-w-md">
-        <CardHeader>
-          <CardTitle>Phase 1 checkpoint</CardTitle>
-          <CardDescription>
-            Authentication is wired end to end. Trend monitoring and the content studio land
-            in the phases ahead.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Email verified: {user?.is_verified ? "yes" : "not yet"}
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap gap-4">
+        <Card className="max-w-md flex-1">
+          <CardHeader>
+            <CardTitle>Phase 1 checkpoint</CardTitle>
+            <CardDescription>
+              Authentication is wired end to end. The content studio lands in a later phase.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Email verified: {user?.is_verified ? "yes" : "not yet"}
+          </CardContent>
+        </Card>
+
+        <Card className="max-w-md flex-1">
+          <CardHeader>
+            <CardTitle>Phase 2 checkpoint</CardTitle>
+            <CardDescription>
+              Trend monitoring is live: platform adapters, dedup, and a searchable trend feed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/trends">View trends</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }

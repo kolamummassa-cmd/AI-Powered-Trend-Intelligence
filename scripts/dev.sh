@@ -19,6 +19,8 @@ export DJANGO_SETTINGS_MODULE=config.settings.dev
 export DATABASE_URL="${DATABASE_URL:-sqlite:///db.sqlite3}"
 
 python manage.py migrate
+python manage.py seed_platforms
+python manage.py poll_now || true  # network/API-key issues here shouldn't block startup
 
 python manage.py runserver > "$ROOT_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!

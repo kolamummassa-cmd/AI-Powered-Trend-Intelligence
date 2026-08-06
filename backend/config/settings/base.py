@@ -46,6 +46,8 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.core",
     "apps.accounts",
+    "apps.trend_sources",
+    "apps.trends",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -167,6 +169,15 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
+# Single heartbeat task that checks every active Platform's due-ness and
+# fans out — adding a platform never means touching this schedule.
+CELERY_BEAT_SCHEDULE = {
+    "poll-due-trend-platforms": {
+        "task": "apps.trend_sources.tasks.poll_due_platforms",
+        "schedule": 300.0,  # every 5 minutes
+    },
+}
+
 # ---------------------------------------------------------------------------
 # AI providers (Phase 3 wires the actual client logic; keys live in env only)
 # ---------------------------------------------------------------------------
@@ -191,6 +202,13 @@ GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 # Where email links (verification, password reset) point to.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@trendintelligence.app")
+
+# ---------------------------------------------------------------------------
+# Trend sources (Phase 2)
+# ---------------------------------------------------------------------------
+REDDIT_CLIENT_ID = env("REDDIT_CLIENT_ID", default="")
+REDDIT_CLIENT_SECRET = env("REDDIT_CLIENT_SECRET", default="")
+REDDIT_USER_AGENT = env("REDDIT_USER_AGENT", default="ai-trend-intelligence/0.1 (by Foluxnova)")
 
 # ---------------------------------------------------------------------------
 # Logging
