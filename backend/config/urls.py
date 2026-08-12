@@ -16,5 +16,7 @@ urlpatterns = [
     path("api/v1/health/", health_check, name="health-check"),
     path("api/v1/auth/", include("apps.accounts.urls")),
     path("api/v1/trends/", include("apps.trends.urls")),
-    # path("api/v1/content/", include("apps.content_studio.urls")), # Phase 5
+    path("api/v1/content/", include("apps.content_studio.urls")),
+    path("api/v1/chat/", include("apps.ai_chat.urls")),
+    path("api/v1/notifications/", include("apps.notifications.urls")),
 ]

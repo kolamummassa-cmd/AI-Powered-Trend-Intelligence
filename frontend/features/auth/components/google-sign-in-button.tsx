@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -33,8 +33,12 @@ export function GoogleSignInButton({ onCredential }: { onCredential: (idToken: s
 
   // Kept in a ref so the render callback always calls the latest
   // handler without needing to re-run initialize()/renderButton().
+  // Updated in a layout effect (not during render) so the ref write
+  // itself is never observed mid-render.
   const onCredentialRef = useRef(onCredential);
-  onCredentialRef.current = onCredential;
+  useLayoutEffect(() => {
+    onCredentialRef.current = onCredential;
+  });
 
   const renderButton = useCallback(() => {
     if (renderedRef.current || !clientId || !containerRef.current || !window.google) return;

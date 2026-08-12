@@ -3,45 +3,108 @@
 
 /*
  * Design tokens for the AI-Powered Trend Intelligence platform.
- * Values come directly from the approved brand spec — do not
- * hand-tune hex values elsewhere, change them here.
+ * Ported from the "I Speak Society" design system reference (Kolamu's
+ * spec) — do not hand-tune hex values elsewhere, change them here.
+ * Every color is defined once under :root (light) and once under .dark
+ * (dark), then re-exposed to Tailwind via @theme inline so utilities
+ * like bg-primary / text-foreground automatically pick the right value.
  */
 :root {
-  --background: #0f172a; /* Dark Background */
-  --foreground: #e2e8f0;
+  --radius: 0.75rem; /* base radius -> radius-lg = 12px, radius-xl = 16px */
 
-  --card: #1e293b; /* Cards */
-  --card-foreground: #e2e8f0;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 
-  --popover: #1e293b;
-  --popover-foreground: #e2e8f0;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
 
-  --primary: #4f46e5;
-  --primary-foreground: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
 
-  --secondary: #7c3aed;
-  --secondary-foreground: #ffffff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #f8fafc;
 
-  --accent: #06b6d4;
-  --accent-foreground: #0f172a;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
 
-  --success: #10b981;
-  --success-foreground: #052e21;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-foreground: #052e2b;
+
+  --success: #16a34a;
+  --success-foreground: #052e12;
 
   --warning: #f59e0b;
   --warning-foreground: #451a03;
 
-  --danger: #ef4444;
-  --danger-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #fef2f2;
 
-  --muted: #1e293b;
+  --purple: #7c3aed;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+
+  --glow-blue: rgba(37, 99, 235, 0.06);
+  --glow-turquoise: rgba(20, 184, 166, 0.06);
+  --grid-dot: rgba(15, 23, 42, 0.05);
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #f8fafc;
+
+  --card: #111827;
+  --card-foreground: #f8fafc;
+
+  --popover: #172033;
+  --popover-foreground: #f8fafc;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #f8fafc;
+
+  --secondary: #172033;
+  --secondary-foreground: #f8fafc;
+
+  --muted: #172033;
   --muted-foreground: #94a3b8;
 
-  --border: #334155;
-  --input: #334155;
-  --ring: #4f46e5;
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-foreground: #5eead4;
 
-  --radius: 0.75rem;
+  --success: #16a34a;
+  --success-foreground: #86efac;
+
+  --warning: #f59e0b;
+  --warning-foreground: #fcd34d;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #fecaca;
+
+  --purple: #7c3aed;
+
+  --border: #243244;
+  --input: #243244;
+  --ring: #2563eb;
+
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-border: #243244;
+
+  --glow-blue: rgba(37, 99, 235, 0.12);
+  --glow-turquoise: rgba(20, 184, 166, 0.1);
+  --grid-dot: rgba(248, 250, 252, 0.03);
 }
 
 @theme inline {
@@ -55,12 +118,17 @@
   --color-popover-foreground: var(--popover-foreground);
 
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
 
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
 
   --color-success: var(--success);
@@ -69,27 +137,76 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
 
-  --color-danger: var(--danger);
-  --color-danger-foreground: var(--danger-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  /* Back-compat alias: several existing components/pages still use the
+     old `danger` token name. Keep both pointed at the same value rather
+     than touching every call site for a pure rename. */
+  --color-danger: var(--destructive);
+  --color-danger-foreground: var(--destructive-foreground);
 
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
+  --color-purple: var(--purple);
 
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 0.25rem);
-  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-xl: calc(var(--radius) + 4px);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Keep native date/time picker icons visible in both themes. */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="month"],
+  input[type="week"] {
+    color-scheme: light;
+  }
+  .dark input[type="date"],
+  .dark input[type="datetime-local"],
+  .dark input[type="time"],
+  .dark input[type="month"],
+  .dark input[type="week"] {
+    color-scheme: dark;
+  }
+}
+
+/* Decorative background - subtle glows + dotted grid behind app shells. */
+@layer components {
+  .dashboard-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 85% 0%, var(--glow-blue), transparent 45%),
+      radial-gradient(circle at 0% 100%, var(--glow-turquoise), transparent 45%),
+      radial-gradient(var(--grid-dot) 1px, transparent 1px);
+    background-size:
+      auto,
+      auto,
+      24px 24px;
+  }
 }
 
 /* Soft, premium scrollbars instead of default browser chrome. */

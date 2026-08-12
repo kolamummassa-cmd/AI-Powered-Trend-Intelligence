@@ -48,6 +48,10 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.trend_sources",
     "apps.trends",
+    "apps.trend_analysis",
+    "apps.content_studio",
+    "apps.ai_chat",
+    "apps.notifications",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -137,10 +141,20 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
-    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
+    # ScopedRateThrottle only fires on views that set throttle_scope, so
+    # User/AnonRateThrottle are also listed as a catch-all floor for every
+    # other endpoint (list/detail views, notifications, analytics, etc.)
+    # that would otherwise have zero rate limiting.
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.ScopedRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
+    ),
     "DEFAULT_THROTTLE_RATES": {
         "auth": "10/min",
         "ai_generation": "20/min",
+        "user": "1000/day",
+        "anon": "100/day",
     },
     "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",
 }
@@ -176,6 +190,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.trend_sources.tasks.poll_due_platforms",
         "schedule": 300.0,  # every 5 minutes
     },
+    "check-trend-lifecycle": {
+        "task": "apps.trends.tasks.check_trend_lifecycle",
+        "schedule": 3600.0,  # hourly — ages trends into expiring/expired, fires alerts
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -209,6 +227,17 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@trendintelligenc
 REDDIT_CLIENT_ID = env("REDDIT_CLIENT_ID", default="")
 REDDIT_CLIENT_SECRET = env("REDDIT_CLIENT_SECRET", default="")
 REDDIT_USER_AGENT = env("REDDIT_USER_AGENT", default="ai-trend-intelligence/0.1 (by Foluxnova)")
+
+# ---------------------------------------------------------------------------
+# Trend sources (Phase 9) — each requires its own developer/API access;
+# see the adapter docstrings in apps/trend_sources/adapters.py for what
+# tier/approval each one needs before a Platform row using it will work.
+# ---------------------------------------------------------------------------
+YOUTUBE_API_KEY = env("YOUTUBE_API_KEY", default="")
+X_BEARER_TOKEN = env("X_BEARER_TOKEN", default="")
+TIKTOK_RESEARCH_TOKEN = env("TIKTOK_RESEARCH_TOKEN", default="")
+INSTAGRAM_ACCESS_TOKEN = env("INSTAGRAM_ACCESS_TOKEN", default="")
+INSTAGRAM_BUSINESS_ACCOUNT_ID = env("INSTAGRAM_BUSINESS_ACCOUNT_ID", default="")
 
 # ---------------------------------------------------------------------------
 # Logging

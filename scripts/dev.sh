@@ -20,7 +20,13 @@ export DATABASE_URL="${DATABASE_URL:-sqlite:///db.sqlite3}"
 
 python manage.py migrate
 python manage.py seed_platforms
-python manage.py poll_now || true  # network/API-key issues here shouldn't block startup
+python manage.py poll_now || true  # network issues here shouldn't block startup
+
+# Phase 3: new trends are auto-analyzed by AI right after ingestion above,
+# but only if ANTHROPIC_API_KEY/OPENAI_API_KEY are set in backend/.env
+# (AI_PROVIDER picks which one). No key configured? Ingestion still
+# works fine — trends just show up unscored until you add a key and run:
+#   python manage.py analyze_now
 
 python manage.py runserver > "$ROOT_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!

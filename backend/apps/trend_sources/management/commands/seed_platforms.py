@@ -2,50 +2,137 @@ from django.core.management.base import BaseCommand
 
 from apps.trend_sources.models import Platform
 
-# Starter set for Phase 2 — official/low-friction sources first, per
-# the roadmap. Add rows here (or via /admin/) for more RSS feeds
-# without touching any code.
+# RSS is the only active source for the current production stage (per
+# product decision, 2026-08-10). X/YouTube/TikTok/Reddit adapter code
+# may still exist from earlier development phases, but nothing here
+# should activate them — this command only ever seeds RSS platforms.
+#
+# poll_interval_minutes=20 matches the current RSS polling requirement.
+# Add more verified RSS feeds here (or via /admin/) without touching
+# any other code — confirm a candidate feed actually parses first with
+# `feedparser.parse(url).entries` in a shell before adding it.
+#
+# IMPORTANT: the feed URLs below beyond TechCrunch's main feed were
+# never reachable from the sandbox this codebase was developed in (no
+# outbound network access), so they're added on the strength of being
+# well-known, publicly documented RSS endpoints for each publication —
+# not independently verified with `feedparser.parse(url).entries`.
+# After the first real deploy, check Django Admin → Trend sources →
+# Platforms: any row with a growing "failures" count or a stale
+# last_polled_at is worth disabling or fixing (one bad feed can't take
+# down the others — poll_platform runs per-platform with its own
+# retry). Business Daily Africa was tried here previously and
+# confirmed to return malformed XML feedparser can't parse — left out
+# entirely rather than seeded broken.
 DEFAULT_PLATFORMS = [
     {
-        "name": "Google Trends (Kenya)",
-        "slug": "google-trends-ke",
-        "adapter_key": "google-trends",
-        "config": {"geo": "KE"},
-        "poll_interval_minutes": 60,
-    },
-    {
-        "name": "Reddit: r/startups",
-        "slug": "reddit-startups",
-        "adapter_key": "reddit",
-        "config": {"subreddit": "startups", "limit": 25},
-        "poll_interval_minutes": 30,
-    },
-    {
-        "name": "Reddit: r/Entrepreneur",
-        "slug": "reddit-entrepreneur",
-        "adapter_key": "reddit",
-        "config": {"subreddit": "Entrepreneur", "limit": 25},
-        "poll_interval_minutes": 30,
-    },
-    {
-        # A placeholder RSS source to prove the pipeline end-to-end.
-        # Business Daily Africa's feed was tried here first but returns
-        # malformed XML feedparser can't extract entries from — swap in
-        # whichever Kenyan news feed you've confirmed actually parses
-        # (check with `feedparser.parse(url).entries` in a shell first),
-        # or add it as a second Platform row via /admin/ without
-        # removing this one.
-        "name": "TechCrunch (RSS)",
+        "name": "TechCrunch",
         "slug": "techcrunch-rss",
         "adapter_key": "rss",
         "config": {"feed_url": "https://techcrunch.com/feed/"},
-        "poll_interval_minutes": 60,
+        "poll_interval_minutes": 20,
+        "is_active": True,
     },
+    {
+        "name": "TechCrunch: Startups",
+        "slug": "techcrunch-startups-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://techcrunch.com/category/startups/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "TechCrunch: Venture",
+        "slug": "techcrunch-venture-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://techcrunch.com/category/venture/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "VentureBeat: AI",
+        "slug": "venturebeat-ai-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://venturebeat.com/category/ai/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "MIT Technology Review",
+        "slug": "mit-tech-review-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://www.technologyreview.com/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "Hacker News: Front Page",
+        "slug": "hacker-news-frontpage-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://hnrss.org/frontpage"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    # African/Kenyan tech + business coverage — the niche-relevance
+    # focus the product is built around, not just global tech news.
+    {
+        "name": "TechCabal",
+        "slug": "techcabal-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://techcabal.com/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "Disrupt Africa",
+        "slug": "disrupt-africa-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://disrupt-africa.com/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "Rest of World",
+        "slug": "rest-of-world-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://restofworld.org/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+    {
+        "name": "African Business",
+        "slug": "african-business-rss",
+        "adapter_key": "rss",
+        "config": {"feed_url": "https://african.business/feed/"},
+        "poll_interval_minutes": 20,
+        "is_active": True,
+    },
+]
+
+# Slugs to deactivate if they already exist in the database — either
+# legacy non-RSS platforms from before RSS became the sole active
+# source, or RSS feeds confirmed (by actually running this) to return
+# malformed XML feedparser can't parse. Deactivated rather than
+# deleted — preserves any signals/trends already collected from them,
+# and an operator can always re-enable one from /admin/ if that
+# decision changes (e.g. the publication fixes their feed).
+DEACTIVATE_SLUGS = [
+    "google-trends-ke",
+    "reddit-startups",
+    "reddit-entrepreneur",
+    # Confirmed 2026-08-11: malformed XML ("mismatched tag") — same
+    # failure mode Business Daily Africa had, which is why that one was
+    # never added to DEFAULT_PLATFORMS at all.
+    "techpoint-africa-rss",
 ]
 
 
 class Command(BaseCommand):
-    help = "Creates the starter set of trend-monitoring Platform rows if they don't already exist."
+    help = (
+        "Creates the starter set of RSS Platform rows if they don't already exist, "
+        "and deactivates legacy non-RSS platforms from earlier phases. "
+        "Idempotent — safe to run on every deploy."
+    )
 
     def handle(self, *args, **options):
         created_count = 0
@@ -56,5 +143,16 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Created platform: {entry['name']}"))
             else:
                 self.stdout.write(f"Already exists: {entry['name']}")
+
+        deactivated = Platform.objects.filter(slug__in=DEACTIVATE_SLUGS, is_active=True).update(
+            is_active=False
+        )
+        if deactivated:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Deactivated {deactivated} legacy/broken platform(s) — "
+                    "see DEACTIVATE_SLUGS for why."
+                )
+            )
 
         self.stdout.write(self.style.SUCCESS(f"Done — {created_count} new platform(s) created."))

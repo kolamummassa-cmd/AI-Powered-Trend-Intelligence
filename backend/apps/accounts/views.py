@@ -68,6 +68,9 @@ class LoginView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
     throttle_scope = "auth"
 
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]

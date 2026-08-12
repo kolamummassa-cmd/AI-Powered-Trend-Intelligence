@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { Skeleton } from "@/components/ui/skeleton";
 import { TrendList } from "@/features/trends/components/trend-list";
 
 export default function TrendsPage() {
@@ -9,7 +12,9 @@ export default function TrendsPage() {
           Everything detected so far, across every connected source.
         </p>
       </div>
-      <TrendList />
+      <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+        <TrendList />
+      </Suspense>
     </main>
   );
 }

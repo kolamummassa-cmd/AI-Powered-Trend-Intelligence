@@ -13,15 +13,19 @@ function VerifyEmailContent() {
   const uid = params.get("uid");
   const token = params.get("token");
   const verifyMutation = useVerifyEmail();
-  const [outcome, setOutcome] = useState<"pending" | "success" | "error">("pending");
-  const [errorMessage, setErrorMessage] = useState("");
+  const hasParams = Boolean(uid && token);
+  // Computed directly from the URL params available at first render —
+  // no need for an effect just to derive state that's already known
+  // synchronously (only the actual async verification call below needs one).
+  const [outcome, setOutcome] = useState<"pending" | "success" | "error">(
+    hasParams ? "pending" : "error",
+  );
+  const [errorMessage, setErrorMessage] = useState(
+    hasParams ? "" : "This verification link is missing information.",
+  );
 
   useEffect(() => {
-    if (!uid || !token) {
-      setOutcome("error");
-      setErrorMessage("This verification link is missing information.");
-      return;
-    }
+    if (!uid || !token) return;
     verifyMutation.mutate(
       { uid, token },
       {

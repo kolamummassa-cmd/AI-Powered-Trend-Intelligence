@@ -38,7 +38,6 @@ ai-trend-intelligence/
 │   │   ├── content_studio/         # content brief, hooks, scripts, remix templates
 │   │   ai_chat/                    # conversational content refinement
 │   │   ├── notifications/          # in-app + email notification engine
-│   │   ├── analytics/              # usage & platform analytics
 │   │   └── core/                   # shared utilities, base models, permissions, pagination
 │   ├── ai_providers/                # AIProvider interface + OpenAIProvider + ClaudeProvider
 │   ├── tests/
@@ -47,7 +46,7 @@ ai-trend-intelligence/
 ├── frontend/
 │   ├── app/                        # Next.js App Router
 │   │   ├── (auth)/                 # login, register, verify, reset
-│   │   ├── (dashboard)/             # dashboard, trends, content studio, analytics, settings
+│   │   ├── (dashboard)/             # dashboard, trends, content studio, settings
 │   ├── features/                   # feature-based modules (trends, content-studio, auth, notifications)
 │   │   ├── trends/
 │   │   │   ├── api/                 # React Query hooks, Axios calls
@@ -100,9 +99,6 @@ All tables include `id (UUID)`, `created_at`, `updated_at`, `deleted_at` (soft d
 **notifications**
 - `Notification` — user_id, type (new_high_value_trend/expiring_trend/generation_complete), payload (jsonb), read_at
   - Index on `(user_id, read_at)` for unread-count queries
-
-**analytics**
-- `UsageEvent` — user_id, event_type, metadata (jsonb), occurred_at — append-only event log that both the Analytics screen and future BI work read from, rather than computing everything live from operational tables
 
 Rationale for this shape: analysis and content are separated from raw trend data and versioned, so the AI pipeline can be re-run, improved, or A/B tested without ever losing what a user has already seen or saved. This matters a lot at pitch time — you can show score history and explain *why* a number changed.
 
@@ -159,8 +155,7 @@ Threaded refinement per generated content piece, platform-conversion actions (Li
 **Phase 7 — Notifications**
 High-value trend alerts, expiring-trend alerts, generation-complete alerts — in-app first, email via existing infra second.
 
-**Phase 8 — Analytics**
-Usage event logging (should actually start being recorded from Phase 1 onward, even before the screen exists), analytics dashboard.
+**Phase 8 — Analytics** *(built, then removed 2026-08-09 at Kolamu's call — not core to the pitch's value prop; the event-logging hooks in other phases' code were removed along with it)*
 
 **Phase 9 — Remaining trend sources**
 TikTok, Instagram Reels, YouTube Shorts, X — added as adapters onto the already-proven pipeline, gated by whichever official API access is secured first.

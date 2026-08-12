@@ -12,7 +12,11 @@ services:
     plan: free
     rootDir: backend
     buildCommand: "pip install -r requirements/prod.txt && python manage.py collectstatic --noinput"
-    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    # migrate + seed_platforms run on every boot of the web service (deploy
+    # or restart) so production never depends on someone manually shelling
+    # in. Both are idempotent — safe to run repeatedly, single free-tier
+    # instance so there's no multi-instance migration race.
+    startCommand: "python manage.py migrate --noinput && python manage.py seed_platforms && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
     healthCheckPath: /api/v1/health/
     envVars:
       - key: DJANGO_SETTINGS_MODULE

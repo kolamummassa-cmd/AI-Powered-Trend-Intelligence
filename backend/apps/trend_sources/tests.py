@@ -2,7 +2,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.trend_sources.adapters import GoogleTrendsAdapter, RedditAdapter, RSSAdapter
+from apps.trend_sources.adapters import (
+    GoogleTrendsAdapter,
+    InstagramAdapter,
+    RedditAdapter,
+    RSSAdapter,
+    TikTokAdapter,
+    XAdapter,
+    YouTubeShortsAdapter,
+)
 from apps.trend_sources.base import get_adapter
 from apps.trend_sources.models import Platform, RawTrendSignal
 
@@ -13,6 +21,10 @@ class TestAdapterRegistry:
             ("rss", RSSAdapter),
             ("reddit", RedditAdapter),
             ("google-trends", GoogleTrendsAdapter),
+            ("youtube-shorts", YouTubeShortsAdapter),
+            ("x", XAdapter),
+            ("tiktok", TikTokAdapter),
+            ("instagram", InstagramAdapter),
         ]:
             adapter = get_adapter(slug, {})
             assert isinstance(adapter, cls)
@@ -110,6 +122,180 @@ class TestGoogleTrendsAdapter:
         assert signals[0].title == "AI regulation"
         assert signals[0].external_id == "ai regulation"
         mock_trend_req.return_value.today_searches.assert_called_once_with(pn="KE")
+
+
+class TestYouTubeShortsAdapter:
+    def test_requires_query_in_config(self):
+        adapter = YouTubeShortsAdapter({})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    def test_requires_api_key(self, settings):
+        settings.YOUTUBE_API_KEY = ""
+        adapter = YouTubeShortsAdapter({"query": "ai tools"})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    @patch("apps.trend_sources.adapters.requests.get")
+    def test_maps_search_results_to_signals(self, mock_get, settings):
+        settings.YOUTUBE_API_KEY = "fake-key"
+        mock_get.return_value = MagicMock(
+            json=lambda: {
+                "items": [
+                    {
+                        "id": {"videoId": "abc123"},
+                        "snippet": {
+                            "title": "AI Tools You Need",
+                            "description": "A short about AI tools.",
+                            "channelTitle": "Tech Channel",
+                            "publishedAt": "2024-01-01T00:00:00Z",
+                        },
+                    }
+                ]
+            },
+            raise_for_status=lambda: None,
+        )
+
+        adapter = YouTubeShortsAdapter({"query": "ai tools"})
+        signals = adapter.fetch_signals()
+
+        assert len(signals) == 1
+        assert signals[0].external_id == "abc123"
+        assert "youtube.com" in signals[0].url
+
+
+class TestXAdapter:
+    def test_requires_query_in_config(self):
+        adapter = XAdapter({})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    def test_requires_bearer_token(self, settings):
+        settings.X_BEARER_TOKEN = ""
+        adapter = XAdapter({"query": "#AItools"})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    @patch("apps.trend_sources.adapters.requests.get")
+    def test_maps_tweets_to_signals(self, mock_get, settings):
+        settings.X_BEARER_TOKEN = "fake-token"
+        mock_get.return_value = MagicMock(
+            json=lambda: {
+                "data": [
+                    {
+                        "id": "999",
+                        "text": "AI tools are changing everything",
+                        "created_at": "2024-01-01T00:00:00.000Z",
+                        "public_metrics": {"like_count": 10},
+                    }
+                ]
+            },
+            raise_for_status=lambda: None,
+        )
+
+        adapter = XAdapter({"query": "#AItools"})
+        signals = adapter.fetch_signals()
+
+        assert len(signals) == 1
+        assert signals[0].external_id == "999"
+        assert "x.com" in signals[0].url
+
+
+class TestTikTokAdapter:
+    def test_requires_query_in_config(self):
+        adapter = TikTokAdapter({})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    def test_requires_research_token(self, settings):
+        settings.TIKTOK_RESEARCH_TOKEN = ""
+        adapter = TikTokAdapter({"query": "ai tools"})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    @patch("apps.trend_sources.adapters.requests.post")
+    def test_maps_videos_to_signals(self, mock_post, settings):
+        settings.TIKTOK_RESEARCH_TOKEN = "fake-token"
+        mock_post.return_value = MagicMock(
+            json=lambda: {
+                "data": {
+                    "videos": [
+                        {
+                            "id": 555,
+                            "video_description": "AI tools trend",
+                            "create_time": 1700000000,
+                            "share_count": 3,
+                            "like_count": 20,
+                        }
+                    ]
+                }
+            },
+            raise_for_status=lambda: None,
+        )
+
+        adapter = TikTokAdapter({"query": "ai tools"})
+        signals = adapter.fetch_signals()
+
+        assert len(signals) == 1
+        assert signals[0].external_id == "555"
+        assert "tiktok.com" in signals[0].url
+
+
+class TestInstagramAdapter:
+    def test_requires_hashtag_in_config(self):
+        adapter = InstagramAdapter({})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    def test_requires_credentials(self, settings):
+        settings.INSTAGRAM_ACCESS_TOKEN = ""
+        settings.INSTAGRAM_BUSINESS_ACCOUNT_ID = ""
+        adapter = InstagramAdapter({"hashtag": "aitools"})
+        with pytest.raises(ValueError):
+            adapter.fetch_signals()
+
+    @patch("apps.trend_sources.adapters.requests.get")
+    def test_maps_hashtag_media_to_signals(self, mock_get, settings):
+        settings.INSTAGRAM_ACCESS_TOKEN = "fake-token"
+        settings.INSTAGRAM_BUSINESS_ACCOUNT_ID = "12345"
+
+        search_response = MagicMock(
+            json=lambda: {"data": [{"id": "hashtag-id-1"}]}, raise_for_status=lambda: None
+        )
+        media_response = MagicMock(
+            json=lambda: {
+                "data": [
+                    {
+                        "id": "media-1",
+                        "caption": "Check out these #aitools",
+                        "permalink": "https://instagram.com/p/abc",
+                        "timestamp": "2024-01-01T00:00:00+0000",
+                        "like_count": 5,
+                        "comments_count": 1,
+                    }
+                ]
+            },
+            raise_for_status=lambda: None,
+        )
+        mock_get.side_effect = [search_response, media_response]
+
+        adapter = InstagramAdapter({"hashtag": "aitools"})
+        signals = adapter.fetch_signals()
+
+        assert len(signals) == 1
+        assert signals[0].external_id == "media-1"
+        assert signals[0].url == "https://instagram.com/p/abc"
+
+    @patch("apps.trend_sources.adapters.requests.get")
+    def test_returns_empty_list_when_hashtag_not_found(self, mock_get, settings):
+        settings.INSTAGRAM_ACCESS_TOKEN = "fake-token"
+        settings.INSTAGRAM_BUSINESS_ACCOUNT_ID = "12345"
+        mock_get.return_value = MagicMock(json=lambda: {"data": []}, raise_for_status=lambda: None)
+
+        adapter = InstagramAdapter({"hashtag": "nonexistent"})
+        signals = adapter.fetch_signals()
+
+        assert signals == []
 
 
 @pytest.mark.django_db

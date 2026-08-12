@@ -30,11 +30,40 @@ class TrendStatus(models.TextChoices):
     EXPIRED = "expired", "Expired"
 
 
+class AudienceType(models.TextChoices):
+    """The three personas the platform serves. Used both for
+    Trend.best_audience (an intelligence signal — "who does this trend
+    naturally fit best") and ContentBrief.perspective (a user choice —
+    "who am I creating content for"). These are deliberately the same
+    enum but conceptually distinct; see ContentBrief.perspective's
+    docstring for why they must never be confused.
+    """
+
+    CONTENT_CREATORS = "content_creators", "Content Creators"
+    FOUNDERS = "founders", "Founders"
+    INVESTORS = "investors", "Investors"
+
+
+class TrendStage(models.TextChoices):
+    EMERGING = "emerging", "Emerging"
+    GROWING = "growing", "Growing"
+    PEAKING = "peaking", "Peaking"
+    DECLINING = "declining", "Declining"
+
+
 class Trend(BaseModel):
     """A real-world trend, deduplicated across however many platforms
-    are reporting on it. Everything AI-derived (why_spreading, scores,
-    confidence) is intentionally nullable here — Phase 2 only proves a
-    trend was detected and where from; Phase 3 fills in why it matters.
+    are reporting on it. why_spreading/estimated_lifespan/scores are
+    nullable/blank until the AI analysis pipeline (Phase 3) fills them
+    in — a trend is real and listable the moment it's detected, before
+    anyone has analyzed why it matters.
+
+    Scores are denormalized here (rather than only living on
+    TrendAnalysis) because the dashboard/feed need to sort and filter
+    by them cheaply and often; TrendAnalysis is the versioned history
+    of *how* those numbers were arrived at, and re-analysis never
+    destroys it. The audience-relevance/intelligence fields added
+    below follow that exact same denormalization pattern.
     """
 
     title = models.CharField(max_length=300)
@@ -56,11 +85,40 @@ class Trend(BaseModel):
     first_detected_at = models.DateTimeField(db_index=True)
     last_seen_at = models.DateTimeField(db_index=True)
 
+    trend_score = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
+    opportunity_score = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
+    confidence_score = models.PositiveSmallIntegerField(null=True, blank=True)
+    analyzed_at = models.DateTimeField(null=True, blank=True)
+
+    # --- Audience relevance & trend intelligence -----------------------
+    # AUDIENCE RELEVANCE: how relevant this trend is to each persona,
+    # 0-100, set by AI analysis. BEST AUDIENCE: derived in code (never
+    # trusted blindly from the model's own JSON) from whichever of the
+    # three scores is highest — see ai_providers.base.parse_analysis_response.
+    # These two concepts, plus ContentBrief.perspective (a user choice),
+    # must stay distinct throughout the app.
+    content_creator_score = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
+    founder_score = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
+    investor_score = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
+    best_audience = models.CharField(
+        max_length=20, choices=AudienceType.choices, blank=True, default="", db_index=True
+    )
+
+    why_it_matters = models.TextField(blank=True, default="")
+    what_is_happening = models.TextField(blank=True, default="")
+    trend_stage = models.CharField(
+        max_length=20, choices=TrendStage.choices, blank=True, default=""
+    )
+    suggested_content_angle = models.TextField(blank=True, default="")
+
     class Meta:
         ordering = ["-last_seen_at"]
         indexes = [
             models.Index(fields=["status", "last_seen_at"]),
             models.Index(fields=["first_detected_at"]),
+            models.Index(fields=["trend_score"]),
+            models.Index(fields=["opportunity_score"]),
+            models.Index(fields=["best_audience"]),
         ]
 
     def __str__(self):

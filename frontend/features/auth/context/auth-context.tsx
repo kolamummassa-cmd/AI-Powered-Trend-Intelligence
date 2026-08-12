@@ -34,6 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasToken, setHasToken] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Deliberately a one-time read-and-setState, not a subscription:
+    // sessionStorage isn't available during SSR, so the initial state
+    // above starts "unknown" on both server and client to keep the
+    // hydration render identical, then this effect resolves it for
+    // real immediately after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasToken(Boolean(getAccessToken()));
   }, []);
 

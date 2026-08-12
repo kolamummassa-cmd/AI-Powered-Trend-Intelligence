@@ -32,9 +32,7 @@ class Command(BaseCommand):
             try:
                 result = poll_platform(str(platform.id))
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        f"  fetched={result.get('fetched')} new={result.get('new')}"
-                    )
+                    self.style.SUCCESS(f"  fetched={result.get('fetched')} new={result.get('new')}")
                 )
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f"  failed: {exc}"))
