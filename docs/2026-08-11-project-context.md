@@ -14,7 +14,7 @@ Core operating principle, established explicitly by the product owner (Kolamu) o
 
 **Frontend:** Next.js 16 (App Router) + React 19, TypeScript, Tailwind CSS v4, TanStack React Query for server state, Radix UI primitives, `react-hook-form` + `zod`, a custom design system ("I Speak Society" tokens) with full light/dark theme support.
 
-**Deployment:** Render.com via `render.yaml` — five services (web, Celery worker, Celery beat, Redis, Next.js frontend). No Docker, no Kubernetes — deliberately kept simple per the product owner's explicit "don't over-engineer" instruction.
+**Deployment:** Railway.com (moved from Render on 2026-08-12) — four Railway services (Django web, Celery worker, Celery beat, Next.js frontend) each with its own per-service `railway.json` config-as-code file, plus a managed Redis and Postgres. No Docker, no Kubernetes — deliberately kept simple per the product owner's explicit "don't over-engineer" instruction.
 
 ## 3. Backend apps (`backend/apps/`)
 
@@ -25,7 +25,7 @@ Core operating principle, established explicitly by the product owner (Kolamu) o
 - **content_studio** — `ContentBrief` (perspective, content_angle, four angle fields, talking points), `GeneratedContent` (hook, 30s/60s script, CTA, hashtags, thumbnail suggestion, remix template — versioned per type).
 - **ai_chat** — conversational refinement of already-generated content, plus platform-conversion actions.
 - **notifications** — in-app notification engine.
-- **core** — `/api/v1/health/` liveness/readiness endpoint (checks actual DB connectivity, used by Render's health check).
+- **core** — `/api/v1/health/` liveness/readiness endpoint (checks actual DB connectivity, used by Railway's `healthcheckPath` on the backend service).
 
 **Removed:** an `analytics` app existed from an earlier phase (event logging + a dashboard) and was fully removed on 2026-08-09 at the product owner's explicit request — judged not core to the product's value proposition. Don't resurrect it without being asked.
 
@@ -77,7 +77,20 @@ Trend detail page → customer reviews trend intelligence (audience relevance sc
 
 ## 8. Deployment
 
-`render.yaml` defines five services: the Django web app (gunicorn), a Celery worker, Celery beat, Redis, and the Next.js frontend. As of 2026-08-11, the web service's `startCommand` runs `python manage.py migrate --noinput && python manage.py seed_platforms` before gunicorn boots, on every deploy and restart — both are idempotent, so this requires no manual shell step in production. There is no Docker or container orchestration in this project; keep it that way unless there's a concrete reason to change.
+Moved from Render to Railway on 2026-08-12. Railway's config-as-code has no multi-service manifest equivalent to `render.yaml` — each service gets its own JSON file, and two dashboard-only settings (Root Directory, and the "Railway Config File" path under Settings → Config-as-code) point Railway at the right file and the right subfolder of this monorepo. There is no `rootDirectory` field in the JSON schema itself.
+
+Four `railway.json`-style files exist:
+
+- `backend/railway.json` — the Django web service. Build: `pip install -r requirements/prod.txt && python manage.py collectstatic --noinput`. Deploy: `preDeployCommand` runs `python manage.py migrate --noinput` then `python manage.py seed_platforms` (both idempotent, run on every deploy/restart, no manual shell step needed) before `startCommand` boots `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. `healthcheckPath` is `/api/v1/health/`.
+- `backend/railway.celery-worker.json` — same build, `startCommand: celery -A config worker -l info`.
+- `backend/railway.celery-beat.json` — same build, `startCommand: celery -A config beat -l info`.
+- `frontend/railway.json` — the Next.js service. Build: `npm install && npm run build`. Deploy: `startCommand: npm run start`.
+
+All four set `restartPolicyType: ON_FAILURE` with `restartPolicyMaxRetries: 10`.
+
+Required manual dashboard setup per service (Railway does not read these from any file): Root Directory (`backend` for the three backend-derived services, `frontend` for the frontend), the Config File path under Settings → Config-as-code pointing at the matching JSON file above, and all environment variables (`DJANGO_SETTINGS_MODULE`, `DJANGO_SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `AI_PROVIDER`, `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`, `CLOUDINARY_*` for backend services; `NEXT_PUBLIC_API_URL` for the frontend, pointing at the backend service's public Railway URL). Redis and Postgres run as managed Railway plugins, referenced by the other services via their Railway-provided connection variables.
+
+`render.yaml` has been deleted from the repo root. There is no Docker or container orchestration in this project; keep it that way unless there's a concrete reason to change.
 
 ## 9. Environment variables
 
@@ -102,7 +115,7 @@ Trend detail page → customer reviews trend intelligence (audience relevance sc
 - A Reddit adapter exists in code, but Reddit API credentials (`REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET`) were never successfully obtained — repeated captcha/IP-block issues on Reddit's own app-creation page blocked setup. Reddit stays inactive regardless (RSS-only by product decision), so this doesn't currently block anything.
 - `GeneratedContent` has no DB-level unique constraint on `(brief, content_type, version)` — versioning relies entirely on application code, not a database safeguard.
 - `django-celery-beat` / `django-celery-results` are not installed — changing the Beat schedule requires a code deploy, and Celery task success/failure isn't visible in Django Admin (only inferable via `Platform.last_polled_at` / `Trend.analyzed_at IS NULL`).
-- Only one RSS feed is currently seeded (TechCrunch). Kenyan/African-focused feeds were considered but not added because outbound network access wasn't available to verify candidate feed URLs actually parse — confirm with `feedparser.parse(url).entries` before adding any new feed to `seed_platforms.py`.
+- 10 RSS feeds are currently seeded and active in `seed_platforms.py` (TechCrunch main/Startups/Venture, VentureBeat AI, MIT Technology Review, Hacker News front page, TechCabal, Disrupt Africa, Rest of World, African Business). Business Daily Africa and Techpoint Africa were tried and deactivated (`DEACTIVATE_SLUGS`) after live testing showed malformed XML from both feeds. The sandbox dev environment has no outbound network access, so any new candidate feed can only be verified by running `feedparser.parse(url).entries` on Kolamu's own machine, not in-session — confirm before adding to `DEFAULT_PLATFORMS`.
 
 ## 12. Working conventions for whoever picks this up next
 
