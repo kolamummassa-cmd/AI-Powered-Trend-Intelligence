@@ -35,7 +35,9 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
         </CardHeader>
         <CardContent className="space-y-3">
           {trend.summary && (
-            <p className="line-clamp-2 text-sm text-muted-foreground">{trend.summary}</p>
+            <p className="line-clamp-2 break-words text-sm text-muted-foreground">
+              {trend.summary}
+            </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             {trend.category && <Badge variant="secondary">{trend.category.name}</Badge>}

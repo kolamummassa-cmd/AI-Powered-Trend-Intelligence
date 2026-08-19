@@ -99,7 +99,9 @@ export function TrendDetail({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {trend.summary && <p className="max-w-3xl text-muted-foreground">{trend.summary}</p>}
+      {trend.summary && (
+        <p className="max-w-3xl break-words text-muted-foreground">{trend.summary}</p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

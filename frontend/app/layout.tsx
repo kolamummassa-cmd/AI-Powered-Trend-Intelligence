@@ -4,15 +4,17 @@ import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 
-// Runs before hydration so dark-mode users never see a flash of the
-// light-mode default while React boots. Mirrors the localStorage-then-
-// matchMedia resolution in lib/theme-provider.tsx exactly.
+// Runs before hydration so returning dark-mode users never see a flash
+// of the light-mode default while React boots. Mirrors the
+// localStorage-only resolution in lib/theme-provider.tsx exactly — light
+// is the deliberate default for first-time visitors regardless of OS
+// preference, so this deliberately does NOT check
+// prefers-color-scheme.
 const NO_FLASH_THEME_SCRIPT = `
 (function () {
   try {
     var stored = window.localStorage.getItem("trend-intelligence-theme");
-    var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.classList.toggle("dark", stored === "dark");
   } catch (e) {}
 })();
 `;

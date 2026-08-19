@@ -9,17 +9,22 @@ const STORAGE_KEY = "trend-intelligence-theme";
 const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void } | null>(null);
 
 function resolveInitialTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  // Deliberately does NOT fall back to prefers-color-scheme — product
+  // decision (2026-08-20): light mode is the default for every first
+  // visit regardless of OS/browser theme, until the user explicitly
+  // toggles (at which point their choice is remembered via localStorage).
+  return "light";
 }
 
 /**
  * Manual light/dark toggle for the authenticated dashboard shell.
  *
- * Reads localStorage first, falls back to the OS preference, then keeps
- * both in sync on every toggle. Applies `.dark` to `document.documentElement`
+ * Reads localStorage first, falls back to light mode (not the OS
+ * preference — light is the deliberate default for first-time visitors),
+ * then keeps both in sync on every toggle. Applies `.dark` to `document.documentElement`
  * (not a nested wrapper div) because inherited `color` values are resolved
  * at the scope where they're declared — a nested `.dark` wouldn't override
  * `<body>`'s own light-mode color — and because Radix Dialog/DropdownMenu
