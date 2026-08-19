@@ -19,7 +19,7 @@ export function DashboardNav() {
 
   return (
     <nav
-      className="sticky top-0 z-40 flex h-[72px] items-center justify-between gap-1 overflow-x-auto border-b border-black/[0.06] bg-white/75 px-4 backdrop-blur-[18px] dark:border-white/[0.06] dark:bg-[rgba(15,23,42,0.75)] sm:px-8"
+      className="sticky top-0 z-40 flex h-[72px] items-center justify-between gap-1 border-b border-black/[0.06] bg-white/75 px-2 backdrop-blur-[18px] dark:border-white/[0.06] dark:bg-[rgba(15,23,42,0.75)] sm:px-8"
       suppressHydrationWarning
     >
       <div className="flex items-center gap-1">
@@ -30,14 +30,17 @@ export function DashboardNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+                "flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all sm:px-3",
                 active
                   ? "bg-[linear-gradient(135deg,#2563eb,#3b82f6_55%,#14b8a6)] text-white shadow-[0_0_30px_rgba(37,99,235,0.35)]"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               <item.icon className="size-4" />
-              {item.label}
+              {/* Icon-only below sm — three full labels plus the theme
+                  toggle and bell no longer fit comfortably starting
+                  around 375px-wide phones. */}
+              <span className="hidden sm:inline">{item.label}</span>
             </Link>
           );
         })}

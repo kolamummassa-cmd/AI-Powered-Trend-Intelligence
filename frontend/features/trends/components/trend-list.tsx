@@ -60,7 +60,7 @@ export function TrendList() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as (typeof STATUS_OPTIONS)[number])}
-          className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+          className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm sm:w-auto"
         >
           {STATUS_OPTIONS.map((option) => (
             <option key={option} value={option} className="bg-card">
@@ -71,7 +71,7 @@ export function TrendList() {
         <select
           value={audience}
           onChange={(e) => setAudience(e.target.value as (typeof AUDIENCE_OPTIONS)[number])}
-          className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+          className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm sm:w-auto"
         >
           {AUDIENCE_OPTIONS.map((option) => (
             <option key={option} value={option} className="bg-card">
@@ -82,7 +82,7 @@ export function TrendList() {
         <select
           value={stage}
           onChange={(e) => setStage(e.target.value as (typeof STAGE_OPTIONS)[number])}
-          className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+          className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm sm:w-auto"
         >
           {STAGE_OPTIONS.map((option) => (
             <option key={option} value={option} className="bg-card">
@@ -90,7 +90,7 @@ export function TrendList() {
             </option>
           ))}
         </select>
-        <label className="flex h-10 items-center gap-2 rounded-md border border-input px-3 text-sm">
+        <label className="flex h-10 w-full items-center gap-2 rounded-md border border-input px-3 text-sm sm:w-auto">
           <input
             type="checkbox"
             checked={highPriorityOnly}

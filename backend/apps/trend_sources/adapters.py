@@ -8,15 +8,41 @@ row — never a change to the ingestion or analysis code.
 """
 
 import logging
+import re
 from datetime import datetime, timezone as dt_timezone
 
 import feedparser
 import requests
 from django.conf import settings
+from django.utils.html import strip_tags
 
 from apps.trend_sources.base import RawSignalData, TrendSourceAdapter, register_adapter
 
 logger = logging.getLogger(__name__)
+
+# hnrss.org (and similar feed generators) wrap every entry's description in
+# "Article URL: <a href=...>...</a>" / "Comments URL: ..." / "Points: N" /
+# "# Comments: N" boilerplate — it's link metadata, not an actual summary of
+# the article. After stripping HTML tags, a summary that's *just* this
+# boilerplate is worse than no summary at all, so it gets dropped entirely
+# instead of shown as-is.
+_LINK_METADATA_BOILERPLATE_RE = re.compile(
+    r"^Article URL:.*Comments URL:.*Points:\s*\d+.*#\s*Comments:\s*\d+\s*$",
+    re.DOTALL,
+)
+
+
+def _clean_summary(raw_summary: str) -> str:
+    """Strips HTML tags from a feed entry's description and collapses the
+    remaining whitespace. Different feeds put wildly different content in
+    this field — some plain text, some full HTML with embedded links —
+    so every RSS-sourced summary goes through this before being stored.
+    """
+    text = strip_tags(raw_summary or "").strip()
+    text = re.sub(r"\s+", " ", text)
+    if _LINK_METADATA_BOILERPLATE_RE.match(text):
+        return ""
+    return text
 
 
 @register_adapter("rss")
@@ -50,7 +76,7 @@ class RSSAdapter(TrendSourceAdapter):
                     external_id=external_id,
                     title=entry.get("title", "").strip(),
                     url=entry.get("link", ""),
-                    summary=entry.get("summary", ""),
+                    summary=_clean_summary(entry.get("summary", "")),
                     published_at=published_at,
                     raw_payload={
                         "author": entry.get("author", ""),

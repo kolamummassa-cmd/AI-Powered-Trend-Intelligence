@@ -8,7 +8,7 @@ export default async function TrendDetailPage({
   const { slug } = await params;
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <TrendDetail slug={slug} />
     </main>
   );

@@ -9,8 +9,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormError } from "@/features/auth/components/form-error";
 import { firstError, useConfirmPasswordReset } from "@/features/auth/api/use-auth-mutations";
 import { type ResetPasswordFormValues, resetPasswordSchema } from "@/lib/validations/auth";
@@ -66,9 +66,8 @@ function ResetPasswordContent() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="new_password">New password</Label>
-            <Input
+            <PasswordInput
               id="new_password"
-              type="password"
               autoComplete="new-password"
               {...register("new_password")}
             />
@@ -76,9 +75,8 @@ function ResetPasswordContent() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new_password_confirm">Confirm new password</Label>
-            <Input
+            <PasswordInput
               id="new_password_confirm"
-              type="password"
               autoComplete="new-password"
               {...register("new_password_confirm")}
             />

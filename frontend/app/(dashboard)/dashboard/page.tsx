@@ -8,13 +8,13 @@ export default function DashboardPage() {
   const { user, signOut } = useAuth();
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <div>
+    <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Signed in as {user?.email}</p>
+          <p className="truncate text-muted-foreground">Signed in as {user?.email}</p>
         </div>
-        <Button variant="outline" onClick={() => signOut()}>
+        <Button variant="outline" onClick={() => signOut()} className="self-start sm:self-auto">
           Sign out
         </Button>
       </div>
