@@ -1,3 +1,10 @@
+# Single-service deployment (2026-08-19): Django + Celery worker + Celery
+# beat + Next.js frontend all run inside one Docker container (see
+# ../Dockerfile, Procfile, docker/), fronted by nginx on one public port.
+# Redis and Postgres remain Render's managed data services rather than
+# being folded into the container — they're infrastructure, not
+# application code, and merging a database or cache into an app container
+# would trade away backups/persistence for no real benefit.
 databases:
   - name: trend-intelligence-db
     databaseName: trend_intelligence
@@ -5,12 +12,11 @@ databases:
 
 services:
   - type: web
-    name: trend-intelligence-backend
-    runtime: python
-    rootDir: backend
+    name: trend-intelligence
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
-    buildCommand: pip install -r requirements/prod.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate --noinput && python manage.py seed_platforms && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     healthCheckPath: /api/v1/health/
     envVars:
       - key: DJANGO_SETTINGS_MODULE
@@ -28,6 +34,11 @@ services:
           type: redis
           name: trend-intelligence-redis
           property: connectionString
+      # ALLOWED_HOSTS/CORS_ALLOWED_ORIGINS/CSRF_TRUSTED_ORIGINS: set these
+      # to this service's own Render domain once it exists (frontend and
+      # backend now share one origin via nginx, so these matter less than
+      # they used to, but ALLOWED_HOSTS still has no code-level default
+      # and Django will refuse to boot without it).
       - key: ALLOWED_HOSTS
         sync: false
       - key: CORS_ALLOWED_ORIGINS
@@ -47,74 +58,7 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
 
-  - type: worker
-    name: trend-intelligence-celery-worker
-    runtime: python
-    rootDir: backend
-    plan: free
-    buildCommand: pip install -r requirements/prod.txt
-    startCommand: celery -A config worker -l info
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings.prod
-      - key: DJANGO_SECRET_KEY
-        sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: trend-intelligence-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: trend-intelligence-redis
-          property: connectionString
-      - key: AI_PROVIDER
-        value: claude
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-
-  - type: worker
-    name: trend-intelligence-celery-beat
-    runtime: python
-    rootDir: backend
-    plan: free
-    buildCommand: pip install -r requirements/prod.txt
-    startCommand: celery -A config beat -l info
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings.prod
-      - key: DJANGO_SECRET_KEY
-        sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: trend-intelligence-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: trend-intelligence-redis
-          property: connectionString
-
   - type: redis
     name: trend-intelligence-redis
     plan: free
     ipAllowList: []
-
-  - type: web
-    name: trend-intelligence-frontend
-    runtime: node
-    rootDir: frontend
-    plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
