@@ -14,6 +14,9 @@ python manage.py seed_platforms
 echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
 
+echo "=== Triggering an immediate trend poll (don't make users wait for Beat's first tick) ==="
+python manage.py poll_now
+
 echo "=== Configuring nginx for port ${PORT:-8080} ==="
 export PORT="${PORT:-8080}"
 envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
