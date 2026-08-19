@@ -14,7 +14,7 @@ Core operating principle, established explicitly by the product owner (Kolamu) o
 
 **Frontend:** Next.js 16 (App Router) + React 19, TypeScript, Tailwind CSS v4, TanStack React Query for server state, Radix UI primitives, `react-hook-form` + `zod`, a custom design system ("I Speak Society" tokens) with full light/dark theme support.
 
-**Deployment:** Railway.com (moved from Render on 2026-08-12) — four Railway services (Django web, Celery worker, Celery beat, Next.js frontend) each with its own per-service `railway.json` config-as-code file, plus a managed Redis and Postgres. No Docker, no Kubernetes — deliberately kept simple per the product owner's explicit "don't over-engineer" instruction.
+**Deployment:** Render.com via `render.yaml` — five services (web, Celery worker, Celery beat, Redis, Next.js frontend) plus a managed Postgres database, defined in a single multi-service manifest. Briefly moved to Railway (2026-08-12 to 2026-08-19), then moved back after repeated build/deploy failures there. No Docker, no Kubernetes — deliberately kept simple per the product owner's explicit "don't over-engineer" instruction.
 
 ## 3. Backend apps (`backend/apps/`)
 
@@ -25,7 +25,7 @@ Core operating principle, established explicitly by the product owner (Kolamu) o
 - **content_studio** — `ContentBrief` (perspective, content_angle, four angle fields, talking points), `GeneratedContent` (hook, 30s/60s script, CTA, hashtags, thumbnail suggestion, remix template — versioned per type).
 - **ai_chat** — conversational refinement of already-generated content, plus platform-conversion actions.
 - **notifications** — in-app notification engine.
-- **core** — `/api/v1/health/` liveness/readiness endpoint (checks actual DB connectivity, used by Railway's `healthcheckPath` on the backend service).
+- **core** — `/api/v1/health/` liveness/readiness endpoint (checks actual DB connectivity, used by Render's `healthCheckPath` on the backend service).
 
 **Removed:** an `analytics` app existed from an earlier phase (event logging + a dashboard) and was fully removed on 2026-08-09 at the product owner's explicit request — judged not core to the product's value proposition. Don't resurrect it without being asked.
 
@@ -77,18 +77,13 @@ Trend detail page → customer reviews trend intelligence (audience relevance sc
 
 ## 8. Deployment
 
-Moved from Render to Railway on 2026-08-12. Railway's config-as-code has no multi-service manifest equivalent to `render.yaml` — each service gets its own JSON file, and two dashboard-only settings (Root Directory, and the "Railway Config File" path under Settings → Config-as-code) point Railway at the right file and the right subfolder of this monorepo. There is no `rootDirectory` field in the JSON schema itself.
+Moved to Railway on 2026-08-12, then moved back to Render on 2026-08-19 after repeated Railway build/deploy failures (invalid `preDeployCommand` schema, a Python 3.13/psycopg2 ABI mismatch, and a pre-deploy step that kept failing without readable logs). `render.yaml` is the single source of truth again — unlike Railway, Render supports a multi-service manifest, so one file defines every service instead of one config file per service.
 
-Four `railway.json`-style files exist:
+`render.yaml` defines five services plus a managed Postgres database: `trend-intelligence-backend` (Django web, gunicorn), `trend-intelligence-celery-worker`, `trend-intelligence-celery-beat`, `trend-intelligence-redis`, and `trend-intelligence-frontend` (Next.js). The web service's `startCommand` runs `python manage.py migrate --noinput && python manage.py seed_platforms` before gunicorn boots, on every deploy and restart — both are idempotent, so this requires no manual shell step in production.
 
-- `backend/railway.json` — the Django web service. Build: `pip install -r requirements/prod.txt && python manage.py collectstatic --noinput`. Deploy: `preDeployCommand` runs `python manage.py migrate --noinput` then `python manage.py seed_platforms` (both idempotent, run on every deploy/restart, no manual shell step needed) before `startCommand` boots `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`. `healthcheckPath` is `/api/v1/health/`.
-- `backend/railway.celery-worker.json` — same build, `startCommand: celery -A config worker -l info`.
-- `backend/railway.celery-beat.json` — same build, `startCommand: celery -A config beat -l info`.
-- `frontend/railway.json` — the Next.js service. Build: `npm install && npm run build`. Deploy: `startCommand: npm run start`.
+Secrets and environment-specific values are marked `sync: false` in the manifest (`ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CLOUDINARY_*`, `NEXT_PUBLIC_API_URL`) — Render won't set these from the file; they're entered once directly in each service's dashboard. `DATABASE_URL` and `REDIS_URL` are wired automatically via `fromDatabase`/`fromService` references to the other services defined in the same file. `DJANGO_SECRET_KEY` uses `generateValue: true` on the web service (and is read from the dashboard, `sync: false`, on the workers, so all three processes share the same key).
 
-All four set `restartPolicyType: ON_FAILURE` with `restartPolicyMaxRetries: 10`.
-
-Required manual dashboard setup per service (Railway does not read these from any file): Root Directory (`backend` for the three backend-derived services, `frontend` for the frontend), the Config File path under Settings → Config-as-code pointing at the matching JSON file above, and all environment variables (`DJANGO_SETTINGS_MODULE`, `DJANGO_SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `AI_PROVIDER`, `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`, `CLOUDINARY_*` for backend services; `NEXT_PUBLIC_API_URL` for the frontend, pointing at the backend service's public Railway URL). Redis and Postgres run as managed Railway plugins, referenced by the other services via their Railway-provided connection variables.
+The four Railway-specific config files (`backend/railway.json`, `backend/railway.celery-worker.json`, `backend/railway.celery-beat.json`, `frontend/railway.json`) were deleted as part of this move back — they have no equivalent or purpose under Render.
 
 `render.yaml` has been deleted from the repo root. There is no Docker or container orchestration in this project; keep it that way unless there's a concrete reason to change.
 
