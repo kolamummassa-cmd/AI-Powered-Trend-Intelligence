@@ -89,7 +89,7 @@ class UserProfile(BaseModel):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     display_name = models.CharField(max_length=100, blank=True)
-    avatar_url = models.URLField(blank=True)  # Cloudinary URL once image upload lands
+    avatar_url = models.URLField(blank=True)  # populated once image upload lands
     role = models.CharField(max_length=20, choices=UserRole.choices, default=UserRole.OTHER)
     preferences = models.JSONField(default=dict, blank=True)
 

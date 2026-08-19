@@ -204,13 +204,6 @@ OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 
 # ---------------------------------------------------------------------------
-# Cloudinary (image storage)
-# ---------------------------------------------------------------------------
-CLOUDINARY_CLOUD_NAME = env("CLOUDINARY_CLOUD_NAME", default="")
-CLOUDINARY_API_KEY = env("CLOUDINARY_API_KEY", default="")
-CLOUDINARY_API_SECRET = env("CLOUDINARY_API_SECRET", default="")
-
-# ---------------------------------------------------------------------------
 # Auth (Phase 1)
 # ---------------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.User"

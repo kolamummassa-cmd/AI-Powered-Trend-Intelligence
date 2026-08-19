@@ -16,7 +16,7 @@ class SourceSnippet:
 class TrendAnalysisContext:
     """Everything the model gets to work with. Deliberately just the
     trend's own data plus what its sources reported — no scraping of
-    the live page, no images yet (Phase 5/Cloudinary territory).
+    the live page, no images yet.
     """
 
     title: str
