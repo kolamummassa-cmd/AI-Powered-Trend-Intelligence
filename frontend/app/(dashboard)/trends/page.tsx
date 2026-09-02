@@ -8,7 +8,7 @@ export default function TrendsPage() {
     <main className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Trends</h1>
-        <p className="text-muted-foreground">
+        <p className="text-black/70 dark:text-white/70">
           Everything detected so far, across every connected source.
         </p>
       </div>

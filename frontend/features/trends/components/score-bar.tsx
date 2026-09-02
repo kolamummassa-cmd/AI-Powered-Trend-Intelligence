@@ -1,12 +1,11 @@
 import { cn } from "@/lib/utils";
 
-// Shared 0-100 score visualization for trend/opportunity/confidence
-// scores. Color intent (danger/warning/success) is decoupled from the
-// raw number so we can tune the thresholds in one place.
+// Scores are evidence strength, not errors: low stays neutral, medium is
+// amber, and high uses the intelligence teal token.
 function scoreVariant(score: number) {
-  if (score >= 70) return "bg-success";
-  if (score >= 40) return "bg-warning";
-  return "bg-danger";
+  if (score >= 70) return "bg-score-high";
+  if (score >= 40) return "bg-score-medium";
+  return "bg-score-low";
 }
 
 export function ScoreBar({

@@ -1,5 +1,7 @@
 from ai_providers import get_ai_provider
 from ai_providers.base import ContentBriefContext, ContentPieceContext
+from django.db import IntegrityError, transaction
+from django.db.models import Max
 from apps.content_studio.models import ContentBrief, GeneratedContent
 from apps.trends.models import Trend
 
@@ -9,6 +11,7 @@ from apps.trends.models import Trend
 ANGLE_FIELD_FOR_CONTENT_TYPE = {
     "hook": "founder_angle",
     "script_30": "business_angle",
+    "post": "marketing_angle",
     "script_60": "business_angle",
     "cta": "marketing_angle",
     "hashtags": "marketing_angle",
@@ -36,6 +39,13 @@ def _build_brief_context(trend: Trend, perspective: str = "") -> ContentBriefCon
         why_it_matters=trend.why_it_matters,
         trend_stage=trend.trend_stage,
         estimated_lifespan=trend.estimated_lifespan,
+        kuzana_relevance_reason=trend.kuzana_relevance_reason,
+        kuzana_theme=trend.kuzana_theme,
+        kuzana_geo_relevance=trend.kuzana_geo_relevance,
+        kuzana_audience=trend.kuzana_audience,
+        kuzana_content_format=trend.kuzana_content_format,
+        kuzana_practical_takeaway=trend.kuzana_practical_takeaway,
+        opportunity_headline=trend.opportunity_headline,
     )
 
 
@@ -111,13 +121,24 @@ def generate_content(
         )
     )
 
-    previous_count = GeneratedContent.objects.filter(brief=brief, content_type=content_type).count()
-
-    return GeneratedContent.objects.create(
-        brief=brief,
-        created_by=user if user and user.is_authenticated else None,
-        content_type=content_type,
-        body=result.body,
-        version=previous_count + 1,
-        model_used=provider_name or provider.__class__.__name__,
-    )
+    # Lock the parent brief before allocating a version. The unique constraint
+    # remains the final database guard if two workers race across DBs.
+    with transaction.atomic():
+        locked_brief = ContentBrief.objects.select_for_update().get(id=brief.id)
+        latest_version = (
+            GeneratedContent.objects.filter(brief=locked_brief, content_type=content_type)
+            .aggregate(latest=Max("version"))["latest"]
+            or 0
+        )
+        try:
+            return GeneratedContent.objects.create(
+                brief=locked_brief,
+                created_by=user if user and user.is_authenticated else None,
+                content_type=content_type,
+                body=result.body,
+                version=latest_version + 1,
+                model_used=provider_name or provider.__class__.__name__,
+            )
+        except IntegrityError:
+            # Callers can safely retry instead of silently overwriting a version.
+            raise

@@ -65,6 +65,32 @@ python manage.py poll_now         # fetches from every active platform immediate
 `REDDIT_CLIENT_SECRET` (a "script" app at reddit.com/prefs/apps) to be set in `.env`;
 Google Trends and RSS work with no credentials.
 
+### Kuzana YouTube and X feeds
+
+`seed_platforms` also creates four disabled, Kuzana-focused social feeds: two
+YouTube Shorts searches and two X recent-search queries for Kenyan founders,
+SMEs, African startups, and funding. Add these values to `backend/.env`:
+
+```bash
+YOUTUBE_API_KEY=your_youtube_data_api_key
+X_BEARER_TOKEN=your_x_api_bearer_token
+```
+
+Then enable them explicitly (the command refuses to run until both keys are
+present) and poll them immediately:
+
+```bash
+cd backend
+python manage.py seed_platforms
+python manage.py enable_kuzana_social_feeds
+python manage.py poll_now --platform youtube-shorts-kenyan-business
+python manage.py poll_now --platform x-kenyan-founders-smes
+```
+
+You can adjust the query, polling interval, and credibility weight per feed in
+Django Admin → Trend sources → Platforms. The feeds use official APIs; they are
+not browser-scraping fallbacks.
+
 ## Deployment
 
 Deployed to Render as native (non-Docker) services, defined in `render.yaml`:

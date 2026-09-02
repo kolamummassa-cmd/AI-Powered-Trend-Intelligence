@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -8,6 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from ai_providers.base import ContentBriefResult, ContentPieceResult
 from apps.accounts.models import User
 from apps.content_studio.models import ContentBrief, GeneratedContent
+from apps.core.models import AIJob
 from apps.content_studio.services import generate_brief, generate_content
 from apps.trend_sources.models import Platform
 from apps.trends.models import Trend
@@ -37,9 +39,10 @@ def trend(db):
 
 
 @pytest.fixture
-def brief(db, trend):
+def brief(db, trend, user):
     return ContentBrief.objects.create(
         trend=trend,
+        created_by=user,
         business_angle="Business angle.",
         founder_angle="Founder angle.",
         educational_angle="Educational angle.",
@@ -50,7 +53,9 @@ def brief(db, trend):
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_user(email="creator@example.com", password="a-strong-passw0rd1")
+    return User.objects.create_user(
+        email="creator@example.com", password="a-strong-passw0rd1", is_verified=True
+    )
 
 
 def _authed_client(user):
@@ -327,7 +332,7 @@ class TestContentBriefAPI:
             first_detected_at=timezone.now(),
             last_seen_at=timezone.now(),
         )
-        ContentBrief.objects.create(trend=other_trend)
+        ContentBrief.objects.create(trend=other_trend, created_by=user)
 
         client = _authed_client(user)
         response = client.get("/api/v1/content/briefs/", {"trend": trend.slug})
@@ -335,29 +340,18 @@ class TestContentBriefAPI:
         assert response.data["count"] == 1
         assert response.data["results"][0]["trend_slug"] == trend.slug
 
-    @patch("apps.content_studio.views.generate_brief")
-    def test_create_generates_a_brief(self, mock_generate, trend, user):
-        mock_generate.return_value = ContentBrief.objects.create(
-            trend=trend,
-            business_angle="x",
-            founder_angle="y",
-            educational_angle="z",
-            marketing_angle="w",
-            talking_points=["a"],
-        )
+    @patch("apps.content_studio.views.enqueue_ai_job")
+    def test_create_queues_a_brief_job(self, mock_enqueue, trend, user):
 
         client = _authed_client(user)
         response = client.post("/api/v1/content/briefs/", {"trend_slug": trend.slug})
 
-        assert response.status_code == 201
-        assert response.data["trend_slug"] == trend.slug
-        mock_generate.assert_called_once()
+        assert response.status_code == 202
+        assert response.data["job_type"] == AIJob.JobType.GENERATE_BRIEF
+        assert AIJob.objects.filter(created_by=user, payload__trend_id=str(trend.id)).exists()
 
-    @patch("apps.content_studio.views.generate_brief")
-    def test_create_passes_perspective_through_to_the_service(self, mock_generate, trend, user):
-        mock_generate.return_value = ContentBrief.objects.create(
-            trend=trend, perspective="investors", content_angle="x"
-        )
+    @patch("apps.content_studio.views.enqueue_ai_job")
+    def test_create_saves_perspective_on_the_job(self, mock_enqueue, trend, user):
 
         client = _authed_client(user)
         client.post(
@@ -366,21 +360,13 @@ class TestContentBriefAPI:
             format="json",
         )
 
-        mock_generate.assert_called_once_with(trend, user=user, perspective="investors")
+        assert AIJob.objects.get(created_by=user).payload["perspective"] == "investors"
 
-    @patch("apps.content_studio.views.generate_brief")
-    def test_create_returns_502_on_provider_error(self, mock_generate, trend, user):
-        from ai_providers.base import AIProviderError
-
-        mock_generate.side_effect = AIProviderError("boom")
-
-        client = _authed_client(user)
-        response = client.post("/api/v1/content/briefs/", {"trend_slug": trend.slug})
-
-        assert response.status_code == 502
 
     def test_detail_includes_generated_content(self, brief, user):
-        GeneratedContent.objects.create(brief=brief, content_type="hook", body="A hook", version=1)
+        GeneratedContent.objects.create(
+            brief=brief, created_by=user, content_type="hook", body="A hook", version=1
+        )
 
         client = _authed_client(user)
         response = client.get(f"/api/v1/content/briefs/{brief.id}/")
@@ -388,29 +374,60 @@ class TestContentBriefAPI:
         assert response.status_code == 200
         assert len(response.data["generated_content"]) == 1
 
+    def test_other_users_briefs_are_not_listed_or_retrievable(self, brief, user):
+        other = User.objects.create_user(
+            email="other@example.com", password="a-strong-passw0rd1", is_verified=True
+        )
+        client = _authed_client(other)
+
+        list_response = client.get("/api/v1/content/briefs/")
+        detail_response = client.get(f"/api/v1/content/briefs/{brief.id}/")
+
+        assert list_response.data["count"] == 0
+        assert detail_response.status_code == 404
+
+    @patch("apps.content_studio.views.enqueue_ai_job")
+    def test_unverified_user_cannot_generate_a_brief(self, mock_enqueue, trend):
+        unverified = User.objects.create_user(
+            email="unverified@example.com", password="a-strong-passw0rd1"
+        )
+        client = _authed_client(unverified)
+
+        response = client.post("/api/v1/content/briefs/", {"trend_slug": trend.slug})
+
+        assert response.status_code == 403
+
+
 
 @pytest.mark.django_db
 class TestGeneratedContentAPI:
-    @patch("apps.content_studio.views.generate_content")
-    def test_create_generates_content(self, mock_generate, brief, user):
-        mock_generate.return_value = GeneratedContent.objects.create(
-            brief=brief, content_type="hook", body="A hook", version=1
-        )
+    @patch("apps.content_studio.views.enqueue_ai_job")
+    def test_create_queues_content_job(self, mock_enqueue, brief, user):
 
         client = _authed_client(user)
         response = client.post(
             "/api/v1/content/pieces/", {"brief_id": str(brief.id), "content_type": "hook"}
         )
 
-        assert response.status_code == 201
-        assert response.data["content_type"] == "hook"
+        assert response.status_code == 202
+        assert response.data["job_type"] == AIJob.JobType.GENERATE_CONTENT
 
     def test_filters_by_brief_and_is_saved(self, brief, user):
         saved = GeneratedContent.objects.create(
-            brief=brief, content_type="hook", body="saved", version=1, is_saved=True
+            brief=brief,
+            created_by=user,
+            content_type="hook",
+            body="saved",
+            version=1,
+            is_saved=True,
         )
         GeneratedContent.objects.create(
-            brief=brief, content_type="cta", body="unsaved", version=1, is_saved=False
+            brief=brief,
+            created_by=user,
+            content_type="cta",
+            body="unsaved",
+            version=1,
+            is_saved=False,
         )
 
         client = _authed_client(user)
@@ -423,7 +440,7 @@ class TestGeneratedContentAPI:
 
     def test_patch_toggles_is_saved(self, brief, user):
         content = GeneratedContent.objects.create(
-            brief=brief, content_type="hook", body="A hook", version=1
+            brief=brief, created_by=user, content_type="hook", body="A hook", version=1
         )
 
         client = _authed_client(user)
@@ -441,7 +458,12 @@ class TestGeneratedContentAPI:
         multipart unsave behavior itself is still worth pinning down.
         """
         content = GeneratedContent.objects.create(
-            brief=brief, content_type="hook", body="A hook", version=1, is_saved=True
+            brief=brief,
+            created_by=user,
+            content_type="hook",
+            body="A hook",
+            version=1,
+            is_saved=True,
         )
 
         client = _authed_client(user)
@@ -452,7 +474,7 @@ class TestGeneratedContentAPI:
 
     def test_patch_cannot_change_body(self, brief, user):
         content = GeneratedContent.objects.create(
-            brief=brief, content_type="hook", body="Original", version=1
+            brief=brief, created_by=user, content_type="hook", body="Original", version=1
         )
 
         client = _authed_client(user)
@@ -460,3 +482,41 @@ class TestGeneratedContentAPI:
 
         content.refresh_from_db()
         assert content.body == "Original"
+
+    def test_other_user_cannot_read_or_update_content(self, brief, user):
+        content = GeneratedContent.objects.create(
+            brief=brief, created_by=user, content_type="hook", body="Private", version=1
+        )
+        other = User.objects.create_user(
+            email="other@example.com", password="a-strong-passw0rd1", is_verified=True
+        )
+        client = _authed_client(other)
+
+        assert client.get(f"/api/v1/content/pieces/{content.id}/").status_code == 404
+        update = client.patch(f"/api/v1/content/pieces/{content.id}/", {"is_saved": True})
+        assert update.status_code == 404
+
+    def test_owner_can_delete_content_piece(self, brief, user):
+        content = GeneratedContent.objects.create(
+            brief=brief, created_by=user, content_type="hook", body="Remove me", version=1
+        )
+
+        response = _authed_client(user).delete(f"/api/v1/content/pieces/{content.id}/")
+
+        assert response.status_code == 204
+        assert not GeneratedContent.objects.filter(id=content.id).exists()
+        assert GeneratedContent.all_objects.get(id=content.id).deleted_at is not None
+
+
+@pytest.mark.django_db
+class TestContentBriefDeletion:
+    def test_owner_can_delete_a_brief_and_its_content(self, brief, user):
+        content = GeneratedContent.objects.create(
+            brief=brief, created_by=user, content_type="hook", body="Remove me", version=1
+        )
+
+        response = _authed_client(user).delete(f"/api/v1/content/briefs/{brief.id}/")
+
+        assert response.status_code == 204
+        assert not ContentBrief.objects.filter(id=brief.id).exists()
+        assert not GeneratedContent.objects.filter(id=content.id).exists()

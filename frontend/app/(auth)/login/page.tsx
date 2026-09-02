@@ -57,7 +57,7 @@ export default function LoginPage() {
     <Card>
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
-        <CardDescription>Pick up right where you left off.</CardDescription>
+        <CardDescription>Pick up where you left off. Your saved opportunities and drafts are ready when you are.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -97,6 +97,7 @@ export default function LoginPage() {
             Create one
           </Link>
         </p>
+        <p className="text-center text-xs text-muted-foreground">Secure sign-in with a protected session. Need help? Reset your password anytime.</p>
       </CardContent>
     </Card>
   );

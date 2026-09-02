@@ -25,11 +25,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="relative flex flex-1 flex-col">
+    <div className="relative flex flex-1">
       <div className="dashboard-backdrop" aria-hidden="true" />
-      <div className="relative z-10 flex flex-1 flex-col">
+      <div className="relative z-10 flex flex-1">
         <DashboardNav />
-        {children}
+        <div className="flex flex-1 flex-col overflow-x-hidden pb-16 md:pb-0">{children}</div>
       </div>
     </div>
   );

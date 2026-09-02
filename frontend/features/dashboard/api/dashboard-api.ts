@@ -4,6 +4,7 @@ export interface PlatformDistribution {
   slug: string;
   name: string;
   trend_count: number;
+  kuzana_priority_weight: number;
 }
 
 export interface DashboardStats {

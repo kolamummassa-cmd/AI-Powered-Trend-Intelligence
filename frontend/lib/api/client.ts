@@ -8,6 +8,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
   timeout: 15_000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -18,38 +19,26 @@ export const apiClient = axios.create({
 const refreshClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
   timeout: 15_000,
+  withCredentials: true,
 });
 
-// sessionStorage is a deliberate, temporary choice: it's simple and
-// scoped to the tab, but it's readable by any script on the page, so
-// it's vulnerable to XSS the same way any JS-accessible token storage
-// is. Revisit before real production traffic — the safer pattern is a
-// short-lived access token kept in memory only, with the refresh token
-// in an httpOnly cookie the backend sets/reads directly.
-const ACCESS_TOKEN_KEY = "trend_intel_access_token";
-const REFRESH_TOKEN_KEY = "trend_intel_refresh_token";
+// The access token lives only in this module's memory. On a page refresh,
+// the app obtains a replacement from the HttpOnly refresh cookie, which is
+// never exposed to JavaScript and therefore cannot be stolen by an XSS read.
+let accessToken: string | null = null;
 
 export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  return accessToken;
 }
 
-export function getRefreshToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem(REFRESH_TOKEN_KEY);
+export function setTokens(tokens: { access: string } | null) {
+  accessToken = tokens?.access ?? null;
 }
 
-export function setTokens(tokens: { access: string; refresh?: string } | null) {
-  if (typeof window === "undefined") return;
-  if (tokens) {
-    window.sessionStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
-    if (tokens.refresh) {
-      window.sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
-    }
-  } else {
-    window.sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    window.sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-  }
+/** React Query uses this for read endpoints: a 429 is a wait signal, not a failure to hammer. */
+export function shouldRetryRequest(failureCount: number, error: unknown) {
+  if (axios.isAxiosError(error) && error.response?.status === 429) return false;
+  return failureCount < 2;
 }
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -64,15 +53,12 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 // firing one refresh request per failed request.
 let refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
-
+export async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = refreshClient
-      .post<{ access: string }>("/auth/token/refresh/", { refresh })
+      .post<{ access: string }>("/auth/token/refresh/")
       .then((res) => {
-        setTokens({ access: res.data.access, refresh });
+        setTokens({ access: res.data.access });
         return res.data.access;
       })
       .catch(() => {
@@ -89,8 +75,14 @@ async function refreshAccessToken(): Promise<string | null> {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
-    const isAuthEndpoint = original?.url?.includes("/auth/login") || original?.url?.includes("/auth/register");
+    const original = error.config as
+      | (InternalAxiosRequestConfig & { _retried?: boolean })
+      | undefined;
+    const isAuthEndpoint =
+      original?.url?.includes("/auth/login") ||
+      original?.url?.includes("/auth/register") ||
+      original?.url?.includes("/auth/token/refresh") ||
+      original?.url?.includes("/auth/logout");
 
     if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
       original._retried = true;

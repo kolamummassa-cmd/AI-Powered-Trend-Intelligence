@@ -29,6 +29,17 @@ FAKE_RESULT = TrendAnalysisResult(
     suggested_content_angle="A concrete angle a creator could use right now.",
     summary="A neutral summary.",
     category_suggestion="Fintech",
+    kuzana_relevance_score=89,
+    kuzana_relevance_reason="Kenyan founders can apply the financing lesson locally.",
+    kuzana_theme="fintech",
+    kuzana_geo_relevance="kenya",
+    kuzana_audience="first-time founders",
+    kuzana_content_format="case study",
+    kuzana_practical_takeaway="Validate the customer pain before choosing a payment model.",
+    opportunity_headline="Kenya's fintech financing gap is a founder opportunity",
+    founder_hook="Could your product remove the financing friction this trend exposes?",
+    investor_hook="Which financing infrastructure gap is this trend making more visible?",
+    creator_hook="Explain the practical founder lesson behind this financing story.",
 )
 
 
@@ -85,12 +96,33 @@ class TestAnalyzeTrend:
         assert trend.why_it_matters == "It matters because of the opportunity it creates."
         assert trend.what_is_happening == "A major platform just launched a new feature."
         assert trend.trend_stage == "growing"
+        assert trend.kuzana_relevance_score == 89
+        assert trend.kuzana_theme == "fintech"
         assert trend.suggested_content_angle == "A concrete angle a creator could use right now."
+        assert trend.opportunity_headline == "Kenya's fintech financing gap is a founder opportunity"
+        assert trend.founder_hook.startswith("Could your product")
 
         assert analysis.content_creator_score == 75
         assert analysis.founder_score == 91
         assert analysis.investor_score == 60
         assert analysis.best_audience == "founders"
+        assert analysis.creator_hook.startswith("Explain the practical")
+
+    @patch("apps.trend_analysis.services.get_ai_provider")
+    def test_hides_editorial_copy_when_kuzana_evidence_is_too_weak(self, mock_get_provider, trend):
+        weak_result = TrendAnalysisResult(
+            **{**FAKE_RESULT.__dict__, "kuzana_relevance_score": 50}
+        )
+        mock_provider = MagicMock()
+        mock_provider.generate_trend_analysis.return_value = weak_result
+        mock_get_provider.return_value = mock_provider
+
+        analysis = analyze_trend(trend)
+        trend.refresh_from_db()
+
+        assert trend.opportunity_headline == ""
+        assert trend.founder_hook == ""
+        assert analysis.opportunity_headline == ""
 
     @patch("apps.trend_analysis.services.get_ai_provider")
     def test_does_not_overwrite_an_existing_category(self, mock_get_provider, trend):

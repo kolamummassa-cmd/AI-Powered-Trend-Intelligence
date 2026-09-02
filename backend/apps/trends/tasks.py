@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from apps.notifications.models import NotificationType
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 # real usage data on how long trends actually stay relevant.
 EXPIRING_AFTER_DAYS = 7
 EXPIRED_AFTER_DAYS = 21
+PURGE_EXPIRED_AFTER_DAYS = 14
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
@@ -84,7 +86,7 @@ def check_trend_lifecycle():
     expired_count = (
         Trend.objects.filter(last_seen_at__lt=expired_cutoff)
         .exclude(status=TrendStatus.EXPIRED)
-        .update(status=TrendStatus.EXPIRED)
+        .update(status=TrendStatus.EXPIRED, expired_at=now)
     )
 
     newly_expiring = list(
@@ -102,4 +104,26 @@ def check_trend_lifecycle():
             {"trend_id": str(trend.id), "trend_slug": trend.slug, "title": trend.title},
         )
 
-    return {"marked_expired": expired_count, "marked_expiring": len(newly_expiring)}
+    # Expired trends stay available for two weeks. After that, remove only
+    # trends with no live user-owned brief. A brief (and its generated pieces)
+    # is a publishing asset, so it always wins over data-retention cleanup.
+    from apps.content_studio.models import ContentBrief
+
+    purge_cutoff = now - timedelta(days=PURGE_EXPIRED_AFTER_DAYS)
+    protected_by_content = ContentBrief.objects.filter(trend_id=OuterRef("pk"))
+    purge_candidates = (
+        Trend.objects.filter(
+            status=TrendStatus.EXPIRED,
+            expired_at__lt=purge_cutoff,
+            retention_required=False,
+        )
+        .annotate(has_user_content=Exists(protected_by_content))
+        .filter(has_user_content=False)
+    )
+    purged_count, _ = purge_candidates.hard_delete()
+
+    return {
+        "marked_expired": expired_count,
+        "marked_expiring": len(newly_expiring),
+        "permanently_deleted": purged_count,
+    }

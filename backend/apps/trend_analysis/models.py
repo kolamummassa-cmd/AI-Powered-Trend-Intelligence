@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.core.models import BaseModel
@@ -46,6 +47,20 @@ class TrendAnalysis(BaseModel):
         max_length=20, choices=TrendStage.choices, default=TrendStage.EMERGING
     )
     suggested_content_angle = models.TextField(default="")
+    kuzana_relevance_score = models.PositiveSmallIntegerField(default=0)
+    kuzana_relevance_reason = models.TextField(default="")
+    kuzana_theme = models.CharField(max_length=30, blank=True, default="")
+    kuzana_geo_relevance = models.CharField(max_length=20, blank=True, default="")
+    kuzana_audience = models.CharField(max_length=100, blank=True, default="")
+    kuzana_content_format = models.CharField(max_length=50, blank=True, default="")
+    kuzana_practical_takeaway = models.TextField(default="")
+
+    # Kept on every analysis version so a re-analysis never erases the
+    # editorial reasoning that produced a previous display headline.
+    opportunity_headline = models.CharField(max_length=180, blank=True, default="")
+    founder_hook = models.CharField(max_length=240, blank=True, default="")
+    investor_hook = models.CharField(max_length=240, blank=True, default="")
+    creator_hook = models.CharField(max_length=240, blank=True, default="")
 
     model_used = models.CharField(max_length=100)
     prompt_version = models.CharField(max_length=20, default="v1")
@@ -57,3 +72,20 @@ class TrendAnalysis(BaseModel):
 
     def __str__(self):
         return f"Analysis of {self.trend.title} ({self.created_at:%Y-%m-%d})"
+
+
+class TrendAnalysisFeedback(BaseModel):
+    """User quality signal used to sample and improve analysis prompts over time."""
+
+    analysis = models.ForeignKey(TrendAnalysis, on_delete=models.CASCADE, related_name="feedback")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    is_helpful = models.BooleanField()
+    comment = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["analysis", "created_by"], name="unique_feedback_per_user_analysis"
+            )
+        ]
+        indexes = [models.Index(fields=["analysis", "created_at"])]

@@ -70,3 +70,34 @@ class BaseModel(models.Model):
     @property
     def is_deleted(self):
         return self.deleted_at is not None
+
+
+class AIJob(BaseModel):
+    """Durable record for a user-initiated asynchronous AI operation."""
+
+    class JobType(models.TextChoices):
+        REANALYZE_TREND = "reanalyze_trend", "Reanalyze trend"
+        GENERATE_BRIEF = "generate_brief", "Generate brief"
+        GENERATE_CONTENT = "generate_content", "Generate content"
+        REFINE_CONTENT = "refine_content", "Refine content"
+        CONVERT_CONTENT = "convert_content", "Convert content"
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, related_name="ai_jobs"
+    )
+    job_type = models.CharField(max_length=32, choices=JobType.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.QUEUED)
+    payload = models.JSONField(default=dict)
+    result = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    celery_task_id = models.CharField(max_length=255, blank=True)
+
+    class Meta(BaseModel.Meta):
+        indexes = [models.Index(fields=["created_by", "status", "-created_at"])]

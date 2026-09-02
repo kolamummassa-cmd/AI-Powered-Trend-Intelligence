@@ -15,6 +15,7 @@ class _SoftDeleteSample(BaseModel):
 
     class Meta:
         app_label = "core"
+        managed = False
 
 
 @pytest.mark.django_db

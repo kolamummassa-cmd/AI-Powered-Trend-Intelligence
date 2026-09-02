@@ -18,7 +18,7 @@ export function StatCard({
     <Card>
       <CardContent className="flex items-center justify-between gap-4 pt-6">
         <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-sm text-black/70 dark:text-white/70">{label}</p>
           <p className="text-3xl font-semibold tracking-tight">{value}</p>
         </div>
         <div

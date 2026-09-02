@@ -8,6 +8,8 @@ from apps.content_studio.services import generate_brief, generate_content
 from apps.notifications.models import NotificationType
 from apps.notifications.services import notify_user
 from apps.trends.models import Trend
+from ai_providers.base import AIProviderError
+from apps.core.ai_jobs import _is_transient_error
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +32,11 @@ def generate_brief_task(self, trend_id: str, user_id: str | None = None):
 
     try:
         brief = generate_brief(trend, user=user)
-    except Exception as exc:
+    except AIProviderError as exc:
         logger.exception("Brief generation failed for trend %s", trend_id)
-        raise self.retry(exc=exc)
+        if _is_transient_error(exc):
+            raise self.retry(exc=exc)
+        return {"trend": trend_id, "error": str(exc)}
 
     if user is not None:
         notify_user(
@@ -61,9 +65,11 @@ def generate_content_task(self, brief_id: str, content_type: str, user_id: str |
 
     try:
         content = generate_content(brief, content_type, user=user)
-    except Exception as exc:
+    except AIProviderError as exc:
         logger.exception("Content generation failed for brief %s (%s)", brief_id, content_type)
-        raise self.retry(exc=exc)
+        if _is_transient_error(exc):
+            raise self.retry(exc=exc)
+        return {"brief": brief_id, "error": str(exc)}
 
     if user is not None:
         notify_user(

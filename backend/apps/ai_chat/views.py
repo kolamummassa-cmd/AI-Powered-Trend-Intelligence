@@ -3,14 +3,18 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ai_providers.base import AIProviderError
+from django.db import transaction
+
+from apps.core.ai_jobs import enqueue_ai_job
+from apps.core.models import AIJob
+from apps.core.permissions import IsVerifiedUser, enforce_ai_generation_quota
+from apps.core.serializers import AIJobSerializer
 from apps.ai_chat.models import AIChatMessage
 from apps.ai_chat.serializers import (
     AIChatMessageSerializer,
     ConvertContentRequestSerializer,
     RefineContentRequestSerializer,
 )
-from apps.ai_chat.services import convert_for_platform, refine_content
 from apps.content_studio.models import GeneratedContent
 
 
@@ -23,7 +27,9 @@ class AIChatMessageListView(generics.ListAPIView):
     serializer_class = AIChatMessageSerializer
 
     def get_queryset(self):
-        queryset = AIChatMessage.objects.select_related("content")
+        queryset = AIChatMessage.objects.filter(
+            content__created_by=self.request.user
+        ).select_related("content")
         content_id = self.request.query_params.get("content")
         if content_id:
             queryset = queryset.filter(content_id=content_id)
@@ -42,14 +48,21 @@ class RefineContentView(APIView):
     def post(self, request):
         req = RefineContentRequestSerializer(data=request.data)
         req.is_valid(raise_exception=True)
-        content = get_object_or_404(GeneratedContent, id=req.validated_data["content_id"])
+        content = get_object_or_404(
+            GeneratedContent, id=req.validated_data["content_id"], created_by=request.user
+        )
+        IsVerifiedUser().has_permission(request, self) or self.permission_denied(
+            request, message=IsVerifiedUser.message
+        )
+        enforce_ai_generation_quota(request.user)
 
-        try:
-            message = refine_content(content, req.validated_data["instruction"], user=request.user)
-        except AIProviderError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
-
-        return Response(AIChatMessageSerializer(message).data, status=status.HTTP_201_CREATED)
+        job = AIJob.objects.create(
+            created_by=request.user,
+            job_type=AIJob.JobType.REFINE_CONTENT,
+            payload={"content_id": str(content.id), "instruction": req.validated_data["instruction"]},
+        )
+        transaction.on_commit(lambda: enqueue_ai_job(job))
+        return Response(AIJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
 
 
 class ConvertContentView(APIView):
@@ -63,13 +76,18 @@ class ConvertContentView(APIView):
     def post(self, request):
         req = ConvertContentRequestSerializer(data=request.data)
         req.is_valid(raise_exception=True)
-        content = get_object_or_404(GeneratedContent, id=req.validated_data["content_id"])
+        content = get_object_or_404(
+            GeneratedContent, id=req.validated_data["content_id"], created_by=request.user
+        )
+        IsVerifiedUser().has_permission(request, self) or self.permission_denied(
+            request, message=IsVerifiedUser.message
+        )
+        enforce_ai_generation_quota(request.user)
 
-        try:
-            message = convert_for_platform(
-                content, req.validated_data["platform"], user=request.user
-            )
-        except AIProviderError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
-
-        return Response(AIChatMessageSerializer(message).data, status=status.HTTP_201_CREATED)
+        job = AIJob.objects.create(
+            created_by=request.user,
+            job_type=AIJob.JobType.CONVERT_CONTENT,
+            payload={"content_id": str(content.id), "platform": req.validated_data["platform"]},
+        )
+        transaction.on_commit(lambda: enqueue_ai_job(job))
+        return Response(AIJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)

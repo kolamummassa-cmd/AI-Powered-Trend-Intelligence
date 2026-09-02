@@ -38,12 +38,15 @@ def _register(client, email="creator@example.com", password=VALID_PASSWORD, **ex
 
 @pytest.mark.django_db
 class TestRegistration:
-    def test_register_creates_user_and_profile_and_returns_tokens(self):
+    def test_register_creates_user_and_profile_and_sets_refresh_cookie(self):
         client = APIClient()
         response = _register(client)
 
         assert response.status_code == 201
-        assert "access" in response.data and "refresh" in response.data
+        assert "access" in response.data
+        assert "refresh" not in response.data
+        assert "trend_intel_refresh" in response.cookies
+        assert response.cookies["trend_intel_refresh"]["httponly"]
         user = User.objects.get(email="creator@example.com")
         assert user.is_verified is False
         assert user.profile.role == UserRole.CREATOR
@@ -85,6 +88,8 @@ class TestLogin:
         )
         assert response.status_code == 200
         assert "access" in response.data
+        assert "refresh" not in response.data
+        assert "trend_intel_refresh" in response.cookies
         assert response.data["email"] == "creator@example.com"
         assert response.data["is_verified"] is False
 
@@ -105,20 +110,22 @@ class TestTokenLifecycle:
     def test_refresh_issues_a_new_access_token(self):
         client = APIClient()
         register_response = _register(client)
-        refresh = register_response.data["refresh"]
+        refresh = register_response.cookies["trend_intel_refresh"].value
+        client.cookies["trend_intel_refresh"] = refresh
 
-        response = client.post("/api/v1/auth/token/refresh/", {"refresh": refresh}, format="json")
+        response = client.post("/api/v1/auth/token/refresh/", format="json")
         assert response.status_code == 200
         assert "access" in response.data
+        assert "refresh" not in response.data
 
     def test_logout_blacklists_the_refresh_token(self):
         client = APIClient()
         register_response = _register(client)
         access = register_response.data["access"]
-        refresh = register_response.data["refresh"]
+        refresh = register_response.cookies["trend_intel_refresh"].value
 
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
-        logout_response = client.post("/api/v1/auth/logout/", {"refresh": refresh}, format="json")
+        logout_response = client.post("/api/v1/auth/logout/", format="json")
         assert logout_response.status_code == 205
 
         refresh_response = client.post(
@@ -128,7 +135,7 @@ class TestTokenLifecycle:
 
     def test_logout_requires_authentication(self):
         client = APIClient()
-        response = client.post("/api/v1/auth/logout/", {"refresh": "whatever"}, format="json")
+        response = client.post("/api/v1/auth/logout/", format="json")
         assert response.status_code == 401
 
 
@@ -208,6 +215,28 @@ class TestPasswordReset:
         )
         assert login_response.status_code == 200
 
+    def test_password_reset_blacklists_existing_refresh_tokens(self):
+        client = APIClient()
+        register_response = _register(client)
+        refresh = register_response.cookies["trend_intel_refresh"].value
+        user = User.objects.get(email="creator@example.com")
+
+        from django.contrib.auth.tokens import default_token_generator
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        response = client.post(
+            "/api/v1/auth/password-reset/confirm/",
+            {"uid": uid, "token": token, "new_password": "a-brand-new-passw0rd"},
+            format="json",
+        )
+        assert response.status_code == 200
+
+        refresh_response = client.post(
+            "/api/v1/auth/token/refresh/", {"refresh": refresh}, format="json"
+        )
+        assert refresh_response.status_code == 401
+
     def test_reset_request_never_reveals_account_existence(self):
         client = APIClient()
         response = client.post(
@@ -232,6 +261,8 @@ class TestGoogleAuth:
 
         assert response.status_code == 200
         assert "access" in response.data
+        assert "refresh" not in response.data
+        assert "trend_intel_refresh" in response.cookies
         user = User.objects.get(email="founder@example.com")
         assert user.google_sub == "google-subject-123"
         assert user.is_verified is True

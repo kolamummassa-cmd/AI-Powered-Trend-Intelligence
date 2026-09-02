@@ -153,6 +153,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth": "10/min",
         "ai_generation": "20/min",
+        "trending_ticker": "120/min",
         "user": "1000/day",
         "anon": "100/day",
     },
@@ -172,6 +173,23 @@ SIMPLE_JWT = {
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:3000"])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["http://localhost:3000"])
+CORS_ALLOW_CREDENTIALS = True
+
+# Customer-facing AI actions have a daily allowance in addition to the
+# short-window DRF throttle. Set to 0 only for a deliberate unlimited plan.
+AI_GENERATION_DAILY_LIMIT = env.int("AI_GENERATION_DAILY_LIMIT", default=30)
+
+# Optional error reporting. The SDK is imported only when explicitly configured,
+# which keeps local development dependency-light.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=env("SENTRY_ENVIRONMENT", default="development" if DEBUG else "production"),
+        traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.1),
+    )
 
 # ---------------------------------------------------------------------------
 # Celery

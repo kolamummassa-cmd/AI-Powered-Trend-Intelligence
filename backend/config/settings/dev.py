@@ -17,3 +17,10 @@ CORS_ALLOW_ALL_ORIGINS = True
 # (e.g. to test scheduling/retry behaviour, not just the task logic).
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=True)
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Keep protection on explicitly scoped security/AI endpoints, but do not
+# rate-limit ordinary authenticated dashboard reads during local development.
+# Production continues to use the global User/Anon throttles from base.py.
+REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = (  # noqa: F405
+    "rest_framework.throttling.ScopedRateThrottle",
+)

@@ -4,7 +4,9 @@ import {
   type ContentType,
   createBrief,
   createGeneratedContent,
+  deleteContentBrief,
   fetchBriefsForTrend,
+  fetchContentVersions,
   fetchGeneratedContent,
   fetchSavedContent,
   setContentSaved,
@@ -19,6 +21,14 @@ export function useGeneratedContent(id: string) {
   });
 }
 
+export function useContentVersions(briefId: string, contentType: ContentType) {
+  return useQuery({
+    queryKey: ["content-versions", briefId, contentType],
+    queryFn: () => fetchContentVersions(briefId, contentType),
+    enabled: Boolean(briefId),
+  });
+}
+
 export function useBriefsForTrend(trendSlug: string) {
   return useQuery({
     queryKey: ["content-briefs", trendSlug],
@@ -28,22 +38,25 @@ export function useBriefsForTrend(trendSlug: string) {
 }
 
 export function useCreateBrief(trendSlug: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (perspective?: AudienceType | "") => createBrief(trendSlug, perspective),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["content-briefs", trendSlug] });
-    },
   });
 }
 
-export function useCreateGeneratedContent(trendSlug: string) {
-  const queryClient = useQueryClient();
+export function useCreateGeneratedContent() {
   return useMutation({
     mutationFn: ({ briefId, contentType }: { briefId: string; contentType: ContentType }) =>
       createGeneratedContent(briefId, contentType),
+  });
+}
+
+export function useDeleteContentBrief(trendSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteContentBrief,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["content-briefs", trendSlug] });
+      queryClient.invalidateQueries({ queryKey: ["saved-content"] });
     },
   });
 }

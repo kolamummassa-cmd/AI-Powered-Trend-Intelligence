@@ -10,12 +10,13 @@ from apps.accounts.models import User
 from apps.ai_chat.models import AIChatMessage
 from apps.ai_chat.services import convert_for_platform, refine_content
 from apps.content_studio.models import ContentBrief, GeneratedContent
+from apps.core.models import AIJob
 from apps.trend_sources.models import Platform
 from apps.trends.models import Trend
 
 
 @pytest.fixture
-def content(db):
+def content(db, user):
     Platform.objects.create(name="Test Platform", slug="test-platform", adapter_key="rss")
     now = timezone.now()
     trend = Trend.objects.create(
@@ -24,15 +25,21 @@ def content(db):
         first_detected_at=now,
         last_seen_at=now,
     )
-    brief = ContentBrief.objects.create(trend=trend)
+    brief = ContentBrief.objects.create(trend=trend, created_by=user)
     return GeneratedContent.objects.create(
-        brief=brief, content_type="hook", body="Original hook body.", version=1
+        brief=brief,
+        created_by=user,
+        content_type="hook",
+        body="Original hook body.",
+        version=1,
     )
 
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_user(email="creator@example.com", password="a-strong-passw0rd1")
+    return User.objects.create_user(
+        email="creator@example.com", password="a-strong-passw0rd1", is_verified=True
+    )
 
 
 def _authed_client(user):
@@ -121,11 +128,8 @@ class TestAIChatAPI:
 
         assert response.data["count"] == 2
 
-    @patch("apps.ai_chat.views.refine_content")
-    def test_refine_endpoint(self, mock_refine, content, user):
-        mock_refine.return_value = AIChatMessage.objects.create(
-            content=content, role="assistant", message="Refined."
-        )
+    @patch("apps.ai_chat.views.enqueue_ai_job")
+    def test_refine_endpoint_queues_job(self, mock_enqueue, content, user):
 
         client = _authed_client(user)
         response = client.post(
@@ -133,27 +137,12 @@ class TestAIChatAPI:
             {"content_id": str(content.id), "instruction": "Make it punchier."},
         )
 
-        assert response.status_code == 201
-        assert response.data["message"] == "Refined."
-        mock_refine.assert_called_once()
+        assert response.status_code == 202
+        assert response.data["job_type"] == AIJob.JobType.REFINE_CONTENT
 
-    @patch("apps.ai_chat.views.refine_content")
-    def test_refine_returns_502_on_provider_error(self, mock_refine, content, user):
-        mock_refine.side_effect = AIProviderError("boom")
 
-        client = _authed_client(user)
-        response = client.post(
-            "/api/v1/chat/refine/",
-            {"content_id": str(content.id), "instruction": "Make it punchier."},
-        )
-
-        assert response.status_code == 502
-
-    @patch("apps.ai_chat.views.convert_for_platform")
-    def test_convert_endpoint(self, mock_convert, content, user):
-        mock_convert.return_value = AIChatMessage.objects.create(
-            content=content, role="assistant", message="Thread version."
-        )
+    @patch("apps.ai_chat.views.enqueue_ai_job")
+    def test_convert_endpoint_queues_job(self, mock_enqueue, content, user):
 
         client = _authed_client(user)
         response = client.post(
@@ -161,5 +150,22 @@ class TestAIChatAPI:
             {"content_id": str(content.id), "platform": "twitter_thread"},
         )
 
-        assert response.status_code == 201
-        mock_convert.assert_called_once()
+        assert response.status_code == 202
+        assert response.data["job_type"] == AIJob.JobType.CONVERT_CONTENT
+
+    @patch("apps.ai_chat.views.enqueue_ai_job")
+    def test_other_user_cannot_view_or_refine_chat(self, mock_enqueue, content):
+        AIChatMessage.objects.create(content=content, role="user", message="Private")
+        other = User.objects.create_user(
+            email="other@example.com", password="a-strong-passw0rd1", is_verified=True
+        )
+        client = _authed_client(other)
+
+        messages = client.get("/api/v1/chat/messages/", {"content": str(content.id)})
+        refine = client.post(
+            "/api/v1/chat/refine/",
+            {"content_id": str(content.id), "instruction": "Steal this."},
+        )
+
+        assert messages.data["count"] == 0
+        assert refine.status_code == 404

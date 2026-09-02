@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client";
+import { type AIJob } from "@/features/ai-jobs/api/ai-jobs-api";
 import { type PaginatedResponse } from "@/features/trends/api/trends-api";
 
 export const PLATFORM_CONVERSIONS = [
@@ -26,7 +27,7 @@ export async function fetchChatMessages(contentId: string) {
 }
 
 export async function refineContent(contentId: string, instruction: string) {
-  const { data } = await apiClient.post<ChatMessage>("/chat/refine/", {
+  const { data } = await apiClient.post<AIJob>("/chat/refine/", {
     content_id: contentId,
     instruction,
   });
@@ -37,7 +38,7 @@ export async function convertContentForPlatform(
   contentId: string,
   platform: PlatformConversion,
 ) {
-  const { data } = await apiClient.post<ChatMessage>("/chat/convert/", {
+  const { data } = await apiClient.post<AIJob>("/chat/convert/", {
     content_id: contentId,
     platform,
   });

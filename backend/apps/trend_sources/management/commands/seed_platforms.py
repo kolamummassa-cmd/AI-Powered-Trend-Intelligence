@@ -2,10 +2,10 @@ from django.core.management.base import BaseCommand
 
 from apps.trend_sources.models import Platform
 
-# RSS is the only active source for the current production stage (per
-# product decision, 2026-08-10). X/YouTube/TikTok/Reddit adapter code
-# may still exist from earlier development phases, but nothing here
-# should activate them — this command only ever seeds RSS platforms.
+# RSS is active by default. Kuzana-focused X and YouTube Shorts feeds are
+# also seeded below, but deliberately disabled until an operator supplies the
+# required official API credentials and explicitly enables them. This avoids a
+# local development startup endlessly retrying an unauthenticated source.
 #
 # poll_interval_minutes=20 matches the current RSS polling requirement.
 # Add more verified RSS feeds here (or via /admin/) without touching
@@ -31,6 +31,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://techcrunch.com/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 80,
+        "kuzana_priority_weight": 40,
         "is_active": True,
     },
     {
@@ -39,6 +41,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://techcrunch.com/category/startups/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 80,
+        "kuzana_priority_weight": 45,
         "is_active": True,
     },
     {
@@ -47,6 +51,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://techcrunch.com/category/venture/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 80,
+        "kuzana_priority_weight": 45,
         "is_active": True,
     },
     {
@@ -55,6 +61,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://venturebeat.com/category/ai/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 75,
+        "kuzana_priority_weight": 40,
         "is_active": True,
     },
     {
@@ -63,6 +71,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://www.technologyreview.com/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 85,
+        "kuzana_priority_weight": 35,
         "is_active": True,
     },
     {
@@ -71,6 +81,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://hnrss.org/frontpage"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 55,
+        "kuzana_priority_weight": 35,
         "is_active": True,
     },
     # African/Kenyan tech + business coverage — the niche-relevance
@@ -81,6 +93,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://techcabal.com/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 75,
+        "kuzana_priority_weight": 90,
         "is_active": True,
     },
     {
@@ -89,6 +103,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://disrupt-africa.com/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 70,
+        "kuzana_priority_weight": 85,
         "is_active": True,
     },
     {
@@ -97,6 +113,8 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://restofworld.org/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 75,
+        "kuzana_priority_weight": 60,
         "is_active": True,
     },
     {
@@ -105,7 +123,73 @@ DEFAULT_PLATFORMS = [
         "adapter_key": "rss",
         "config": {"feed_url": "https://african.business/feed/"},
         "poll_interval_minutes": 20,
+        "credibility_weight": 70,
+        "kuzana_priority_weight": 80,
         "is_active": True,
+    },
+    # Kuzana social feeds. These are deliberately narrow searches: YouTube
+    # and X do not expose a reliable general "what is trending in Kenya"
+    # firehose to ordinary API accounts, so focused business/founder queries
+    # produce a more useful and explainable signal set.
+    {
+        "name": "YouTube Shorts: Kenyan business",
+        "slug": "youtube-shorts-kenyan-business",
+        "adapter_key": "youtube-shorts",
+        "config": {
+            "query": "Kenya business entrepreneurship",
+            "region_code": "KE",
+            "max_results": 25,
+        },
+        "poll_interval_minutes": 30,
+        "credibility_weight": 55,
+        "kuzana_priority_weight": 85,
+        "is_active": False,
+    },
+    {
+        "name": "YouTube Shorts: African startups",
+        "slug": "youtube-shorts-african-startups",
+        "adapter_key": "youtube-shorts",
+        "config": {
+            "query": "African startups founders fintech",
+            "region_code": "KE",
+            "max_results": 25,
+        },
+        "poll_interval_minutes": 30,
+        "credibility_weight": 55,
+        "kuzana_priority_weight": 75,
+        "is_active": False,
+    },
+    {
+        "name": "X: Kenyan founders and SMEs",
+        "slug": "x-kenyan-founders-smes",
+        "adapter_key": "x",
+        "config": {
+            "query": (
+                "(Kenya OR Kenyan) (startup OR founder OR entrepreneur OR SME OR fintech) "
+                "-is:retweet lang:en"
+            ),
+            "max_results": 50,
+        },
+        "poll_interval_minutes": 15,
+        "credibility_weight": 45,
+        "kuzana_priority_weight": 85,
+        "is_active": False,
+    },
+    {
+        "name": "X: African funding and business",
+        "slug": "x-african-funding-business",
+        "adapter_key": "x",
+        "config": {
+            "query": (
+                "(Africa OR Kenyan) (funding OR raised OR investment OR business) "
+                "-is:retweet lang:en"
+            ),
+            "max_results": 50,
+        },
+        "poll_interval_minutes": 15,
+        "credibility_weight": 45,
+        "kuzana_priority_weight": 75,
+        "is_active": False,
     },
 ]
 
@@ -129,19 +213,26 @@ DEACTIVATE_SLUGS = [
 
 class Command(BaseCommand):
     help = (
-        "Creates the starter set of RSS Platform rows if they don't already exist, "
-        "and deactivates legacy non-RSS platforms from earlier phases. "
+        "Creates starter RSS and disabled Kuzana social Platform rows if they don't already exist, "
+        "and deactivates legacy generic social platforms from earlier phases. "
         "Idempotent — safe to run on every deploy."
     )
 
     def handle(self, *args, **options):
         created_count = 0
         for entry in DEFAULT_PLATFORMS:
-            _, created = Platform.objects.get_or_create(slug=entry["slug"], defaults=entry)
+            platform, created = Platform.objects.get_or_create(slug=entry["slug"], defaults=entry)
             if created:
                 created_count += 1
                 self.stdout.write(self.style.SUCCESS(f"Created platform: {entry['name']}"))
             else:
+                # These are product-owned source rankings, not user-entered
+                # feeds. Keep the priority policy current on every seed while
+                # leaving activation state and query configuration untouched.
+                Platform.objects.filter(id=platform.id).update(
+                    credibility_weight=entry["credibility_weight"],
+                    kuzana_priority_weight=entry["kuzana_priority_weight"],
+                )
                 self.stdout.write(f"Already exists: {entry['name']}")
 
         deactivated = Platform.objects.filter(slug__in=DEACTIVATE_SLUGS, is_active=True).update(

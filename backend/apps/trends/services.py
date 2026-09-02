@@ -1,6 +1,7 @@
 import re
 
 from django.core.cache import cache
+from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.utils import timezone
 
@@ -13,6 +14,7 @@ DASHBOARD_STATS_CACHE_TTL = 30  # seconds — read-heavy aggregate, short TTL ke
 
 _NON_ALNUM = re.compile(r"[^a-z0-9\s]")
 _WHITESPACE = re.compile(r"\s+")
+_TOKEN_RE = re.compile(r"[a-z0-9]{3,}")
 
 
 def normalize_title(title: str) -> str:
@@ -26,6 +28,30 @@ def normalize_title(title: str) -> str:
     text = _NON_ALNUM.sub("", text)
     text = _WHITESPACE.sub(" ", text).strip()
     return text[:300]
+
+
+def _title_similarity(left: str, right: str) -> float:
+    """Token-set similarity catches headline rewrites without over-merging short titles."""
+    left_tokens = set(_TOKEN_RE.findall(left))
+    right_tokens = set(_TOKEN_RE.findall(right))
+    if len(left_tokens) < 3 or len(right_tokens) < 3:
+        return 0.0
+    return len(left_tokens & right_tokens) / len(left_tokens | right_tokens)
+
+
+def _find_matching_trend(key: str):
+    exact = Trend.objects.filter(active_dedup_key=key).first()
+    if exact:
+        return exact
+    candidates = Trend.objects.exclude(status=TrendStatus.EXPIRED).only(
+        "id", "dedup_key", "last_seen_at"
+    ).order_by("-last_seen_at")[:250]
+    return next((trend for trend in candidates if _title_similarity(key, trend.dedup_key) >= 0.72), None)
+
+
+def _source_relevance(trend_title: str, signal_title: str) -> int:
+    similarity = _title_similarity(normalize_title(trend_title), normalize_title(signal_title))
+    return max(20, min(100, round(similarity * 100)))
 
 
 def ingest_raw_signal(raw_signal: RawTrendSignal) -> tuple[Trend, bool]:
@@ -46,35 +72,44 @@ def ingest_raw_signal(raw_signal: RawTrendSignal) -> tuple[Trend, bool]:
     key = normalize_title(raw_signal.title)
     published = raw_signal.published_at or raw_signal.created_at
 
-    trend = (
-        Trend.objects.filter(dedup_key=key)
-        .exclude(status=TrendStatus.EXPIRED)
-        .order_by("-last_seen_at")
-        .first()
-    )
+    with transaction.atomic():
+        # Recheck while locked: a Celery retry or another worker may have
+        # connected this signal after the cheap preflight above.
+        existing_link = TrendSourceLink.objects.select_related("trend").filter(raw_signal=raw_signal).first()
+        if existing_link:
+            return existing_link.trend, False
 
-    is_new_trend = trend is None
-    if is_new_trend:
-        trend = Trend.objects.create(
-            title=raw_signal.title,
-            dedup_key=key,
-            summary=raw_signal.summary,
-            first_detected_at=published,
-            last_seen_at=published,
+        trend = _find_matching_trend(key)
+        is_new_trend = trend is None
+        if is_new_trend:
+            try:
+                with transaction.atomic():
+                    trend = Trend.objects.create(
+                        title=raw_signal.title,
+                        dedup_key=key,
+                        active_dedup_key=key,
+                        summary=raw_signal.summary,
+                        first_detected_at=published,
+                        last_seen_at=published,
+                    )
+            except IntegrityError:
+                # The unique key is the final concurrency guard for identical titles.
+                trend = Trend.objects.get(active_dedup_key=key)
+                is_new_trend = False
+        elif published and published > trend.last_seen_at:
+            trend.last_seen_at = published
+            trend.save(update_fields=["last_seen_at"])
+
+        TrendSourceLink.objects.create(
+            trend=trend,
+            platform=raw_signal.platform,
+            raw_signal=raw_signal,
+            source_url=raw_signal.url,
+            relevance_score=_source_relevance(trend.title, raw_signal.title),
         )
-    elif published and published > trend.last_seen_at:
-        trend.last_seen_at = published
-        trend.save(update_fields=["last_seen_at"])
 
-    TrendSourceLink.objects.create(
-        trend=trend,
-        platform=raw_signal.platform,
-        raw_signal=raw_signal,
-        source_url=raw_signal.url,
-    )
-
-    raw_signal.processed_at = timezone.now()
-    raw_signal.save(update_fields=["processed_at"])
+        raw_signal.processed_at = timezone.now()
+        raw_signal.save(update_fields=["processed_at"])
 
     return trend, is_new_trend
 
@@ -102,7 +137,7 @@ def get_dashboard_stats() -> dict:
         Platform.objects.filter(is_active=True)
         .annotate(trend_count=Count("trend_links__trend", distinct=True))
         .order_by("-trend_count")
-        .values("slug", "name", "trend_count")
+        .values("slug", "name", "trend_count", "kuzana_priority_weight")
     )
 
     stats = {

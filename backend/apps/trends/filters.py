@@ -12,6 +12,7 @@ HIGH_PRIORITY_OPPORTUNITY_SCORE = 70
 # exact match on best_audience, so a trend can show up for more than
 # one audience filter (its best audience just happens to score higher).
 AUDIENCE_RELEVANCE_THRESHOLD = 60
+KUZANA_RELEVANCE_THRESHOLD = 70
 
 AUDIENCE_SCORE_FIELD = {
     AudienceType.CONTENT_CREATORS: "content_creator_score",
@@ -36,6 +37,7 @@ class TrendFilter(django_filters.FilterSet):
     # "All Audiences" is simply omitting this param — there's still one
     # unified trend feed, this only narrows it by stored relevance.
     audience = django_filters.ChoiceFilter(choices=AudienceType.choices, method="filter_audience")
+    kuzana_only = django_filters.BooleanFilter(method="filter_kuzana_only")
 
     class Meta:
         model = Trend
@@ -49,6 +51,7 @@ class TrendFilter(django_filters.FilterSet):
             "min_opportunity_score",
             "high_priority",
             "audience",
+            "kuzana_only",
         ]
 
     def filter_high_priority(self, queryset, name, value):
@@ -64,3 +67,8 @@ class TrendFilter(django_filters.FilterSet):
         if not score_field:
             return queryset
         return queryset.filter(**{f"{score_field}__gte": AUDIENCE_RELEVANCE_THRESHOLD})
+
+    def filter_kuzana_only(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(kuzana_relevance_score__gte=KUZANA_RELEVANCE_THRESHOLD)

@@ -47,7 +47,12 @@ export function SavedContentLibrary() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="line-clamp-4 whitespace-pre-wrap text-sm text-muted-foreground">
+            <p className="mb-2 text-sm font-medium text-foreground">{content.trend_title}</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              {content.perspective ? `${content.perspective.replaceAll("_", " ")} perspective` : "General perspective"}
+            </p>
+            {content.brief_context && <p className="mb-2 line-clamp-2 text-xs text-muted-foreground">Brief: {content.brief_context}</p>}
+            <p className="line-clamp-4 whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
               {content.body}
             </p>
             <Link

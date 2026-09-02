@@ -19,6 +19,17 @@ class Platform(BaseModel):
     config = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
     poll_interval_minutes = models.PositiveIntegerField(default=60)
+    credibility_weight = models.PositiveSmallIntegerField(
+        default=50,
+        help_text="Editorial credibility score from 0-100, used as one input to AI analysis.",
+    )
+    kuzana_priority_weight = models.PositiveSmallIntegerField(
+        default=50,
+        help_text=(
+            "Kuzana editorial priority from 0-100. Higher values make a source's "
+            "evidence more influential when deciding relevance for Kenyan founders."
+        ),
+    )
     last_polled_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

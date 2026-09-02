@@ -55,7 +55,7 @@ export default function RegisterPage() {
     <Card>
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
-        <CardDescription>From trend to publishable content in under 30 minutes.</CardDescription>
+        <CardDescription>Start with one recommended opportunity, then turn it into publish-ready content.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -99,6 +99,7 @@ export default function RegisterPage() {
             Sign in
           </Link>
         </p>
+        <p className="text-center text-xs text-muted-foreground">After registration, verify your email and we&apos;ll guide you to your first opportunity.</p>
       </CardContent>
     </Card>
   );

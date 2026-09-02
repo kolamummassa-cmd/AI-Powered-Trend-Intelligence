@@ -24,29 +24,55 @@ const STAGE_VARIANT = {
 // Links through to the dedicated trend detail page (source timeline,
 // AI explanation, scores) added in Phase 3.
 export function TrendCard({ trend }: { trend: TrendListItem }) {
+  const displayTitle = trend.opportunity_headline || trend.title;
+  const audienceCue = trend.best_audience === "founders"
+    ? trend.founder_hook
+    : trend.best_audience === "investors"
+      ? trend.investor_hook
+      : trend.best_audience === "content_creators"
+        ? trend.creator_hook
+        : "";
+  const audienceLabel = trend.best_audience
+    ? AUDIENCE_LABELS[trend.best_audience]
+    : "";
+
   return (
     <Link href={`/trends/${trend.slug}`} className="block">
       <Card className="h-full transition-colors hover:border-primary/50">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-base">{trend.title}</CardTitle>
+            <CardTitle className="text-base">{displayTitle}</CardTitle>
             <Badge variant={STATUS_VARIANT[trend.status]}>{trend.status}</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {trend.summary && (
-            <p className="line-clamp-2 break-words text-sm text-muted-foreground">
+            <p className="line-clamp-2 break-words text-sm text-black/70 dark:text-white/70">
               {trend.summary}
+            </p>
+          )}
+          {audienceCue && (
+            <p className="line-clamp-2 text-sm font-medium text-foreground/80">
+              For {audienceLabel}: {audienceCue}
+            </p>
+          )}
+          {trend.opportunity_headline && (
+            <p className="line-clamp-1 text-xs text-muted-foreground">
+              Source: {trend.title}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             {trend.category && <Badge variant="secondary">{trend.category.name}</Badge>}
+            {trend.kuzana_theme && <Badge variant="accent">Kuzana · {trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
             {trend.platforms.map((platform) => (
               <Badge key={platform} variant="outline">
                 {platform}
               </Badge>
             ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {trend.source_count} source{trend.source_count === 1 ? "" : "s"} · {trend.source_freshness}
+          </p>
           {(trend.best_audience || trend.trend_stage) && (
             <div className="flex flex-wrap items-center gap-2">
               {trend.best_audience && (
@@ -69,6 +95,12 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
                   <span className="font-medium text-foreground">{trend.opportunity_score}</span>
                 </>
               )}
+            </p>
+          )}
+          {trend.kuzana_relevance_score !== null && (
+            <p className="text-xs text-muted-foreground">
+              Kuzana relevance <span className="font-medium text-foreground">{trend.kuzana_relevance_score}/100</span>
+              {trend.kuzana_geo_relevance && <> · {trend.kuzana_geo_relevance.replaceAll("_", " ")}</>}
             </p>
           )}
         </CardContent>

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { getAccessToken, getRefreshToken, setTokens } from "@/lib/api/client";
+import { refreshAccessToken, setTokens } from "@/lib/api/client";
 import {
   type AuthTokens,
   type AuthUser,
@@ -27,20 +27,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // Both start "unknown" until the mount effect runs — this avoids a
-  // render, on refresh of a protected page, where a real token exists
-  // in sessionStorage but hasn't been read yet, which would otherwise
-  // look identical to "not logged in" and bounce the user to /login.
+  // Both start "unknown" until the mount effect uses the HttpOnly refresh
+  // cookie to restore an in-memory access token. This avoids redirecting a
+  // real session to login during hydration.
   const [hasToken, setHasToken] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Deliberately a one-time read-and-setState, not a subscription:
-    // sessionStorage isn't available during SSR, so the initial state
-    // above starts "unknown" on both server and client to keep the
-    // hydration render identical, then this effect resolves it for
-    // real immediately after mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHasToken(Boolean(getAccessToken()));
+    let active = true;
+    refreshAccessToken().then((access) => {
+      if (active) setHasToken(Boolean(access));
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const { data: user, isLoading: isMeLoading } = useQuery({
@@ -57,9 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
-    const refresh = getRefreshToken();
     try {
-      if (refresh) await logoutRequest(refresh);
+      await logoutRequest();
     } catch {
       // Token may already be expired/blacklisted — still clear local
       // state and send the user back to login either way.

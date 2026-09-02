@@ -53,6 +53,7 @@ class ContentBrief(BaseModel):
 class ContentType(models.TextChoices):
     HOOK = "hook", "Hook"
     SCRIPT_30 = "script_30", "30s script"
+    POST = "post", "Post"
     SCRIPT_60 = "script_60", "60s script"
     CTA = "cta", "Call to action"
     HASHTAGS = "hashtags", "Hashtags"
@@ -89,6 +90,12 @@ class GeneratedContent(BaseModel):
         indexes = [
             models.Index(fields=["created_by", "is_saved"]),
             models.Index(fields=["brief", "content_type"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["brief", "content_type", "version"],
+                name="unique_content_version_per_brief_type",
+            )
         ]
 
     def __str__(self):

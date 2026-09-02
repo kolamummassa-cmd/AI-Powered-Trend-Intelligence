@@ -12,7 +12,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="truncate text-muted-foreground">Signed in as {user?.email}</p>
+          <p className="truncate text-black/70 dark:text-white/70">Signed in as {user?.email}</p>
         </div>
         <Button variant="outline" onClick={() => signOut()} className="self-start sm:self-auto">
           Sign out

@@ -1,8 +1,11 @@
 import { type Notification } from "@/features/notifications/api/notifications-api";
 
+export type NotificationCategory = "Opportunity" | "Time-sensitive" | "Content ready" | "Update";
+
 export function formatNotification(notification: Notification): {
   title: string;
   href: string | null;
+  category: NotificationCategory;
 } {
   const { type, payload } = notification;
 
@@ -11,11 +14,13 @@ export function formatNotification(notification: Notification): {
       return {
         title: `New high-value trend: ${payload.title ?? "Untitled"}`,
         href: payload.trend_slug ? `/trends/${payload.trend_slug}` : null,
+        category: "Opportunity",
       };
     case "expiring_trend":
       return {
         title: `Trend expiring soon: ${payload.title ?? "Untitled"}`,
         href: payload.trend_slug ? `/trends/${payload.trend_slug}` : null,
+        category: "Time-sensitive",
       };
     case "generation_complete":
       return {
@@ -27,8 +32,17 @@ export function formatNotification(notification: Notification): {
           : payload.trend_slug
             ? `/trends/${payload.trend_slug}`
             : null,
+        category: "Content ready",
       };
     default:
-      return { title: "New notification", href: null };
+      return { title: "New notification", href: null, category: "Update" };
   }
+}
+
+export function relativeTime(value: string) {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }

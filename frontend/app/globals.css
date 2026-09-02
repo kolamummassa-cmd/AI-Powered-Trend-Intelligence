@@ -33,16 +33,20 @@
 
   --accent: #14b8a6;
   --accent-hover: #0d9488;
-  --accent-foreground: #052e2b;
+  --accent-foreground: #115e59;
 
   --success: #16a34a;
-  --success-foreground: #052e12;
+  --success-foreground: #14532d;
 
   --warning: #f59e0b;
-  --warning-foreground: #451a03;
+  --warning-foreground: #78350f;
 
-  --destructive: #dc2626;
+  --destructive: #b91c1c;
   --destructive-foreground: #fef2f2;
+
+  --score-low: #64748b;
+  --score-medium: #d97706;
+  --score-high: #0f766e;
 
   --purple: #7c3aed;
 
@@ -54,8 +58,6 @@
   --sidebar-foreground: #0f172a;
   --sidebar-border: #e2e8f0;
 
-  --glow-blue: rgba(37, 99, 235, 0.06);
-  --glow-turquoise: rgba(20, 184, 166, 0.06);
   --grid-dot: rgba(15, 23, 42, 0.05);
 }
 
@@ -92,6 +94,10 @@
   --destructive: #dc2626;
   --destructive-foreground: #fecaca;
 
+  --score-low: #94a3b8;
+  --score-medium: #fbbf24;
+  --score-high: #2dd4bf;
+
   --purple: #7c3aed;
 
   --border: #243244;
@@ -102,8 +108,6 @@
   --sidebar-foreground: #f8fafc;
   --sidebar-border: #243244;
 
-  --glow-blue: rgba(37, 99, 235, 0.12);
-  --glow-turquoise: rgba(20, 184, 166, 0.1);
   --grid-dot: rgba(248, 250, 252, 0.03);
 }
 
@@ -144,6 +148,10 @@
      than touching every call site for a pure rename. */
   --color-danger: var(--destructive);
   --color-danger-foreground: var(--destructive-foreground);
+
+  --color-score-low: var(--score-low);
+  --color-score-medium: var(--score-medium);
+  --color-score-high: var(--score-high);
 
   --color-purple: var(--purple);
 
@@ -191,21 +199,53 @@
   }
 }
 
-/* Decorative background - subtle glows + dotted grid behind app shells. */
+/* A restrained grid keeps app pages structured without adding visual noise. */
 @layer components {
   .dashboard-backdrop {
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background-image:
-      radial-gradient(circle at 85% 0%, var(--glow-blue), transparent 45%),
-      radial-gradient(circle at 0% 100%, var(--glow-turquoise), transparent 45%),
-      radial-gradient(var(--grid-dot) 1px, transparent 1px);
-    background-size:
-      auto,
-      auto,
-      24px 24px;
+    background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+/* Continuous horizontal scroll strip for the landing page's live
+   "Trending Now" ticker — two identical content blocks placed side by
+   side and animated left; when the first fully exits, the second is
+   in exactly the same spot, so the loop is seamless. */
+@layer components {
+  .trending-ticker-track {
+    display: flex;
+    width: max-content;
+    animation: trending-ticker-scroll 45s linear infinite;
+  }
+  .trending-ticker-track:hover {
+    animation-play-state: paused;
+  }
+}
+@keyframes trending-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .trending-ticker-track {
+    animation: none;
   }
 }
 

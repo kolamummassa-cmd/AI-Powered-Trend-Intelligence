@@ -44,6 +44,17 @@ VALID_RESPONSE = {
     "suggested_content_angle": "A concrete angle a creator could use.",
     "summary": "A neutral summary.",
     "category_suggestion": "Fintech",
+    "kuzana_relevance_score": 89,
+    "kuzana_relevance_reason": "Kenyan founders can apply the financing lesson locally.",
+    "kuzana_theme": "fintech",
+    "kuzana_geo_relevance": "kenya",
+    "kuzana_audience": "first-time founders",
+    "kuzana_content_format": "case study",
+    "kuzana_practical_takeaway": "Validate the customer pain before choosing a payment model.",
+    "opportunity_headline": "Kenya's fintech financing lesson is becoming a founder opportunity",
+    "founder_hook": "Could your product remove the financing friction this trend exposes?",
+    "investor_hook": "Which financing infrastructure gap is this trend making more visible?",
+    "creator_hook": "Explain the practical founder lesson behind this financing story.",
 }
 
 
@@ -52,6 +63,8 @@ class TestParseAnalysisResponse:
         result = parse_analysis_response(VALID_RESPONSE)
         assert result.trend_score == 72
         assert result.category_suggestion == "Fintech"
+        assert result.kuzana_relevance_score == 89
+        assert result.opportunity_headline.startswith("Kenya's fintech")
 
     def test_missing_field_raises(self):
         data = {k: v for k, v in VALID_RESPONSE.items() if k != "trend_score"}
@@ -113,6 +126,11 @@ class TestParseAnalysisResponse:
 
     def test_invalid_trend_stage_raises(self):
         data = {**VALID_RESPONSE, "trend_stage": "exploding"}
+        with pytest.raises(AIProviderError):
+            parse_analysis_response(data)
+
+    def test_overlong_editorial_copy_raises(self):
+        data = {**VALID_RESPONSE, "opportunity_headline": "x" * 181}
         with pytest.raises(AIProviderError):
             parse_analysis_response(data)
 

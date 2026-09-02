@@ -1,15 +1,18 @@
 "use client";
 
-import { ArrowLeftIcon, ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, RefreshCwIcon, ThumbsDownIcon, ThumbsUpIcon } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContentStudioPanel } from "@/features/content-studio/components/content-studio-panel";
+import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
 import { AUDIENCE_LABELS, type AudienceType } from "@/features/trends/api/trends-api";
-import { useReanalyzeTrend, useTrend } from "@/features/trends/api/use-trend";
+import { useReanalyzeTrend, useTrend, useTrendFeedback } from "@/features/trends/api/use-trend";
 import { ScoreBar } from "@/features/trends/components/score-bar";
 
 const STATUS_VARIANT = {
@@ -33,8 +36,21 @@ const TREND_STAGE_VARIANT = {
 } as const;
 
 export function TrendDetail({ slug }: { slug: string }) {
-  const { data: trend, isLoading, isError } = useTrend(slug);
+  const { data: trend, isLoading, isError, refetch } = useTrend(slug);
   const reanalyze = useReanalyzeTrend(slug);
+  const feedback = useTrendFeedback(slug);
+  const [jobId, setJobId] = useState<string>();
+  const { data: job } = useAIJob(jobId);
+  const retryJob = useRetryAIJob();
+  const queryClient = useQueryClient();
+  const jobIsActive = job?.status === "queued" || job?.status === "running";
+
+  useEffect(() => {
+    if (job?.status === "completed") {
+      void queryClient.invalidateQueries({ queryKey: ["trend", slug] });
+      void queryClient.invalidateQueries({ queryKey: ["trends"] });
+    }
+  }, [job?.status, queryClient, slug]);
 
   if (isLoading) {
     return (
@@ -50,14 +66,23 @@ export function TrendDetail({ slug }: { slug: string }) {
     return (
       <div className="rounded-lg border border-dashed border-border py-16 text-center">
         <p className="text-muted-foreground">Could not load this trend.</p>
-        <Button asChild variant="outline" className="mt-4">
+        <div className="mt-4 flex justify-center gap-2">
+        <Button variant="outline" onClick={() => refetch()}>Retry</Button>
+        <Button asChild variant="outline">
           <Link href="/trends">Back to trends</Link>
         </Button>
+        </div>
       </div>
     );
   }
 
   const analysis = trend.latest_analysis;
+  const displayTitle = trend.opportunity_headline || trend.title;
+  const audienceHooks = [
+    { audience: "founders" as const, copy: trend.founder_hook },
+    { audience: "investors" as const, copy: trend.investor_hook },
+    { audience: "content_creators" as const, copy: trend.creator_hook },
+  ].filter(({ copy }) => Boolean(copy));
   const hasIntelligence = Boolean(
     trend.what_is_happening || trend.why_spreading || trend.estimated_lifespan || trend.trend_stage,
   );
@@ -74,18 +99,18 @@ export function TrendDetail({ slug }: { slug: string }) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => reanalyze.mutate()}
-          disabled={reanalyze.isPending}
+          onClick={() => reanalyze.mutate(undefined, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
+          disabled={reanalyze.isPending || jobIsActive}
         >
-          <RefreshCwIcon className={reanalyze.isPending ? "animate-spin" : undefined} />
-          {reanalyze.isPending ? "Analyzing..." : analysis ? "Re-analyze" : "Analyze now"}
+          <RefreshCwIcon className={reanalyze.isPending || jobIsActive ? "animate-spin" : undefined} />
+          {reanalyze.isPending || jobIsActive ? "Queueing..." : analysis ? "Re-analyze" : "Analyze now"}
         </Button>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{trend.title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{displayTitle}</h1>
             <Badge variant={STATUS_VARIANT[trend.status]}>{trend.status}</Badge>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -99,9 +124,56 @@ export function TrendDetail({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {trend.summary && (
-        <p className="max-w-3xl break-words text-muted-foreground">{trend.summary}</p>
+      {trend.opportunity_headline && (
+        <p className="-mt-3 text-sm text-muted-foreground">
+          Original source headline: {trend.title}
+        </p>
       )}
+
+      {trend.kuzana_relevance_score !== null && (
+        <Card className="border-accent/30">
+          <CardHeader><CardTitle className="text-base">Why Kuzana should cover this</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="accent">Kuzana relevance {trend.kuzana_relevance_score}/100</Badge>
+              {trend.kuzana_theme && <Badge variant="outline">{trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
+              {trend.kuzana_geo_relevance && <Badge variant="outline">{trend.kuzana_geo_relevance.replaceAll("_", " ")}</Badge>}
+              {trend.kuzana_content_format && <Badge variant="outline">{trend.kuzana_content_format}</Badge>}
+            </div>
+            {trend.kuzana_relevance_reason && <p>{trend.kuzana_relevance_reason}</p>}
+            {trend.kuzana_audience && <p className="text-muted-foreground">Best for: {trend.kuzana_audience}</p>}
+            {trend.kuzana_practical_takeaway && <p className="font-medium">Practical takeaway: {trend.kuzana_practical_takeaway}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {audienceHooks.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Audience cues</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3">
+            {audienceHooks.map(({ audience, copy }) => (
+              <div key={audience} className="space-y-1 rounded-md border border-border p-3">
+                <p className="text-sm font-medium">For {AUDIENCE_LABELS[audience]}</p>
+                <p className="text-sm text-muted-foreground">{copy}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {trend.summary && (
+        <p className="max-w-3xl break-words text-black/70 dark:text-white/70">{trend.summary}</p>
+      )}
+
+      <ContentStudioPanel trendSlug={trend.slug} bestAudience={trend.best_audience || undefined} />
+
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <Badge variant={trend.source_freshness === "fresh" ? "success" : "outline"}>
+          {trend.source_freshness}
+        </Badge>
+        <span>{trend.source_count} independent source{trend.source_count === 1 ? "" : "s"}</span>
+        {trend.confidence_score !== null && <span>· AI confidence {trend.confidence_score}/100</span>}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -132,6 +204,20 @@ export function TrendDetail({ slug }: { slug: string }) {
         <p className="text-sm text-danger">
           Could not queue analysis. Check that an AI provider key is configured.
         </p>
+      )}
+
+      {job && (
+        <div className="rounded-md border border-border bg-muted/50 p-3 text-sm" role="status">
+          {job.status === "queued" && "Analysis is queued."}
+          {job.status === "running" && "AI is analyzing this trend…"}
+          {job.status === "completed" && "Analysis complete — the trend details have refreshed."}
+          {job.status === "failed" && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>Analysis failed: {job.error_message || "Please try again."}</span>
+              {job.can_retry && <Button size="sm" variant="outline" onClick={() => retryJob.mutate(job.id, { onSuccess: (nextJob) => setJobId(nextJob.id) })}>Retry</Button>}
+            </div>
+          )}
+        </div>
       )}
 
       {trend.audience_relevance && (
@@ -167,7 +253,28 @@ export function TrendDetail({ slug }: { slug: string }) {
             <CardTitle className="text-base">Why this matters</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">{trend.why_it_matters}</p>
+            <p className="text-sm text-black/70 dark:text-white/70">{trend.why_it_matters}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {trend.action_summary && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-base">Why this is worth acting on now</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-foreground">{trend.action_summary}</p>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>Was this analysis useful?</span>
+              <Button size="sm" variant="outline" disabled={feedback.isPending} onClick={() => feedback.mutate({ isHelpful: true })}>
+                <ThumbsUpIcon /> Yes
+              </Button>
+              <Button size="sm" variant="outline" disabled={feedback.isPending} onClick={() => feedback.mutate({ isHelpful: false })}>
+                <ThumbsDownIcon /> Not yet
+              </Button>
+              {feedback.isSuccess && <span className="text-success">Thanks—your feedback improves future analyses.</span>}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -181,13 +288,13 @@ export function TrendDetail({ slug }: { slug: string }) {
             {trend.what_is_happening && (
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">What&apos;s happening</p>
-                <p className="text-sm text-muted-foreground">{trend.what_is_happening}</p>
+                <p className="text-sm text-black/70 dark:text-white/70">{trend.what_is_happening}</p>
               </div>
             )}
             {trend.why_spreading && (
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">Why it&apos;s spreading</p>
-                <p className="text-sm text-muted-foreground">{trend.why_spreading}</p>
+                <p className="text-sm text-black/70 dark:text-white/70">{trend.why_spreading}</p>
               </div>
             )}
             <div className="flex flex-wrap items-center gap-4">
@@ -211,7 +318,9 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
       {analysis && (
-        <Card>
+        <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-6 py-4 text-base font-semibold">AI relevance breakdown</summary>
+          <Card className="border-0 shadow-none">
           <CardHeader>
             <CardTitle className="text-base">AI relevance breakdown</CardTitle>
           </CardHeader>
@@ -219,18 +328,18 @@ export function TrendDetail({ slug }: { slug: string }) {
             {RELEVANCE_FIELDS.map(({ key, label }) => (
               <div key={key} className="space-y-1">
                 <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-sm text-muted-foreground">{analysis[key]}</p>
+                <p className="text-sm text-black/70 dark:text-white/70">{analysis[key]}</p>
               </div>
             ))}
           </CardContent>
-        </Card>
+          </Card>
+        </details>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sources ({trend.source_links.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
+      <details className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer px-6 py-4 text-base font-semibold">Sources ({trend.source_links.length})</summary>
+        <Card className="border-0 shadow-none">
+          <CardContent className="space-y-2 pt-2">
           {trend.source_links.length === 0 && (
             <p className="text-sm text-muted-foreground">No sources recorded yet.</p>
           )}
@@ -243,6 +352,9 @@ export function TrendDetail({ slug }: { slug: string }) {
                 <Badge variant="outline">{link.platform}</Badge>
                 <span className="text-muted-foreground">
                   {new Date(link.created_at).toLocaleString()}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Credibility {link.credibility_weight}/100 · relevance {link.relevance_score}/100
                 </span>
               </div>
               {link.source_url && (
@@ -257,8 +369,9 @@ export function TrendDetail({ slug }: { slug: string }) {
               )}
             </div>
           ))}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </details>
 
       {(trend.best_audience || trend.suggested_content_angle) && (
         <Card>
@@ -277,14 +390,13 @@ export function TrendDetail({ slug }: { slug: string }) {
             {trend.suggested_content_angle && (
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">Suggested content angle</p>
-                <p className="text-sm text-muted-foreground">{trend.suggested_content_angle}</p>
+                <p className="text-sm text-black/70 dark:text-white/70">{trend.suggested_content_angle}</p>
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      <ContentStudioPanel trendSlug={trend.slug} bestAudience={trend.best_audience || undefined} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client";
+import { type AIJob } from "@/features/ai-jobs/api/ai-jobs-api";
 
 export interface Category {
   id: string;
@@ -18,7 +19,13 @@ export const TREND_STAGE_LABELS: Record<TrendStage, string> = {
 
 export interface TrendListItem {
   id: string;
+  // `title` is always the unmodified publisher/source headline. The
+  // opportunity headline is optional, evidence-gated editorial framing.
   title: string;
+  opportunity_headline: string;
+  founder_hook: string;
+  investor_hook: string;
+  creator_hook: string;
   slug: string;
   category: Category | null;
   summary: string;
@@ -31,17 +38,25 @@ export interface TrendListItem {
   first_detected_at: string;
   last_seen_at: string;
   platforms: string[];
+  source_count: number;
+  source_freshness: "fresh" | "recent" | "aging";
   // Surfaced on the card itself, not just the detail page — best_audience
   // is an intelligence signal only (see TrendDetail's note below), never
   // a restriction on who can generate content about this trend.
   best_audience: AudienceType | "";
   trend_stage: TrendStage | "";
+  kuzana_relevance_score: number | null;
+  kuzana_theme: string;
+  kuzana_geo_relevance: string;
 }
 
 export interface TrendSourceLink {
   platform: string;
   platform_slug: string;
   source_url: string;
+  published_at: string | null;
+  credibility_weight: number;
+  relevance_score: number;
   created_at: string;
 }
 
@@ -79,6 +94,18 @@ export interface TrendAnalysis {
   what_is_happening: string;
   trend_stage: TrendStage | "";
   suggested_content_angle: string;
+  action_summary: string;
+  kuzana_relevance_score: number;
+  kuzana_relevance_reason: string;
+  kuzana_theme: string;
+  kuzana_geo_relevance: string;
+  kuzana_audience: string;
+  kuzana_content_format: string;
+  kuzana_practical_takeaway: string;
+  opportunity_headline: string;
+  founder_hook: string;
+  investor_hook: string;
+  creator_hook: string;
   model_used: string;
   created_at: string;
 }
@@ -97,6 +124,11 @@ export interface TrendDetail extends TrendListItem {
   why_it_matters: string;
   what_is_happening: string;
   suggested_content_angle: string;
+  action_summary: string;
+  kuzana_relevance_reason: string;
+  kuzana_audience: string;
+  kuzana_content_format: string;
+  kuzana_practical_takeaway: string;
   created_at: string;
 }
 
@@ -115,6 +147,7 @@ export interface TrendListParams {
   high_priority?: boolean;
   audience?: AudienceType;
   stage?: TrendStage;
+  kuzana_only?: boolean;
   ordering?: string;
   page?: number;
 }
@@ -132,6 +165,22 @@ export async function fetchTrend(slug: string) {
 }
 
 export async function reanalyzeTrend(slug: string) {
-  const { data } = await apiClient.post<{ detail: string }>(`/trends/${slug}/reanalyze/`);
+  const { data } = await apiClient.post<AIJob>(`/trends/${slug}/reanalyze/`);
+  return data;
+}
+
+export async function submitTrendFeedback(slug: string, isHelpful: boolean, comment = "") {
+  const { data } = await apiClient.post(`/trends/${slug}/feedback/`, {
+    is_helpful: isHelpful,
+    comment,
+  });
+  return data;
+}
+
+// Public, unauthenticated slice of live trend titles — powers the
+// "Trending Now" ticker on the marketing landing page. Works whether
+// or not the visitor is signed in.
+export async function fetchTrendingTicker() {
+  const { data } = await apiClient.get<{ titles: string[] }>("/trends/trending-ticker/");
   return data;
 }

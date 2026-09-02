@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.trend_analysis.serializers import TrendAnalysisSerializer
@@ -13,21 +14,37 @@ class CategorySerializer(serializers.ModelSerializer):
 class TrendSourceLinkSerializer(serializers.ModelSerializer):
     platform = serializers.CharField(source="platform.name")
     platform_slug = serializers.CharField(source="platform.slug")
+    credibility_weight = serializers.IntegerField(source="platform.credibility_weight")
+    published_at = serializers.DateTimeField(source="raw_signal.published_at")
 
     class Meta:
         model = TrendSourceLink
-        fields = ("platform", "platform_slug", "source_url", "created_at")
+        fields = (
+            "platform",
+            "platform_slug",
+            "source_url",
+            "published_at",
+            "credibility_weight",
+            "relevance_score",
+            "created_at",
+        )
 
 
 class TrendListSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     platforms = serializers.SerializerMethodField()
+    source_count = serializers.SerializerMethodField()
+    source_freshness = serializers.SerializerMethodField()
 
     class Meta:
         model = Trend
         fields = (
             "id",
             "title",
+            "opportunity_headline",
+            "founder_hook",
+            "investor_hook",
+            "creator_hook",
             "slug",
             "category",
             "summary",
@@ -40,16 +57,32 @@ class TrendListSerializer(serializers.ModelSerializer):
             "first_detected_at",
             "last_seen_at",
             "platforms",
+            "source_count",
+            "source_freshness",
             # Surfaced on the card itself (not just the detail page) so the
             # feed reads like a ranked intelligence view, not a bare list.
             "best_audience",
             "trend_stage",
+            "kuzana_relevance_score",
+            "kuzana_theme",
+            "kuzana_geo_relevance",
         )
 
     def get_platforms(self, obj) -> list[str]:
         # Relies on the view prefetching source_links__platform — avoids
         # an extra query per row when listing many trends.
         return sorted({link.platform.slug for link in obj.source_links.all()})
+
+    def get_source_count(self, obj) -> int:
+        return len(obj.source_links.all())
+
+    def get_source_freshness(self, obj) -> str:
+        age_hours = (timezone.now() - obj.last_seen_at).total_seconds() / 3600
+        if age_hours < 24:
+            return "fresh"
+        if age_hours < 24 * 7:
+            return "recent"
+        return "aging"
 
 
 class TrendDetailSerializer(TrendListSerializer):
@@ -73,6 +106,11 @@ class TrendDetailSerializer(TrendListSerializer):
             "why_it_matters",
             "what_is_happening",
             "suggested_content_angle",
+            "action_summary",
+            "kuzana_relevance_reason",
+            "kuzana_audience",
+            "kuzana_content_format",
+            "kuzana_practical_takeaway",
             "created_at",
         )
 
@@ -100,6 +138,7 @@ class PlatformDistributionSerializer(serializers.Serializer):
     slug = serializers.CharField()
     name = serializers.CharField()
     trend_count = serializers.IntegerField()
+    kuzana_priority_weight = serializers.IntegerField()
 
 
 class DashboardStatsSerializer(serializers.Serializer):

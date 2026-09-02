@@ -1,9 +1,11 @@
 import { apiClient } from "@/lib/api/client";
+import { type AIJob } from "@/features/ai-jobs/api/ai-jobs-api";
 import { type AudienceType, type PaginatedResponse } from "@/features/trends/api/trends-api";
 
 export const CONTENT_TYPES = [
   "hook",
   "script_30",
+  "post",
   "script_60",
   "cta",
   "hashtags",
@@ -16,6 +18,7 @@ export type ContentType = (typeof CONTENT_TYPES)[number];
 export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   hook: "Hook",
   script_30: "30s script",
+  post: "Post",
   script_60: "60s script",
   cta: "Call to action",
   hashtags: "Hashtags",
@@ -26,6 +29,10 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 export interface GeneratedContent {
   id: string;
   brief: string;
+  trend_title: string;
+  trend_slug: string;
+  perspective: AudienceType | "";
+  brief_context: string;
   content_type: ContentType;
   body: string;
   version: number;
@@ -62,7 +69,7 @@ export async function fetchBriefsForTrend(trendSlug: string) {
 }
 
 export async function createBrief(trendSlug: string, perspective?: AudienceType | "") {
-  const { data } = await apiClient.post<ContentBrief>("/content/briefs/", {
+  const { data } = await apiClient.post<AIJob>("/content/briefs/", {
     trend_slug: trendSlug,
     perspective: perspective || undefined,
   });
@@ -70,7 +77,7 @@ export async function createBrief(trendSlug: string, perspective?: AudienceType 
 }
 
 export async function createGeneratedContent(briefId: string, contentType: ContentType) {
-  const { data } = await apiClient.post<GeneratedContent>("/content/pieces/", {
+  const { data } = await apiClient.post<AIJob>("/content/pieces/", {
     brief_id: briefId,
     content_type: contentType,
   });
@@ -84,6 +91,19 @@ export async function setContentSaved(contentId: string, isSaved: boolean) {
   return data;
 }
 
+export async function updateContentBody(contentId: string, body: string) {
+  const { data } = await apiClient.patch<GeneratedContent>(`/content/pieces/${contentId}/`, { body });
+  return data;
+}
+
+export async function deleteContentBrief(briefId: string) {
+  await apiClient.delete(`/content/briefs/${briefId}/`);
+}
+
+export async function deleteGeneratedContent(contentId: string) {
+  await apiClient.delete(`/content/pieces/${contentId}/`);
+}
+
 export async function fetchGeneratedContent(id: string) {
   const { data } = await apiClient.get<GeneratedContent>(`/content/pieces/${id}/`);
   return data;
@@ -94,4 +114,11 @@ export async function fetchSavedContent() {
     params: { is_saved: "true" },
   });
   return data;
+}
+
+export async function fetchContentVersions(briefId: string, contentType: ContentType) {
+  const { data } = await apiClient.get<PaginatedResponse<GeneratedContent>>("/content/pieces/", {
+    params: { brief: briefId },
+  });
+  return data.results.filter((item) => item.content_type === contentType).sort((a, b) => b.version - a.version);
 }

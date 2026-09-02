@@ -2,7 +2,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 
-from ai_providers.base import AIProviderError
+from django.db import transaction
+
+from apps.core.ai_jobs import enqueue_ai_job
+from apps.core.models import AIJob
+from apps.core.permissions import IsVerifiedUser, enforce_ai_generation_quota
+from apps.core.serializers import AIJobSerializer
 from apps.content_studio.models import ContentBrief, GeneratedContent
 from apps.content_studio.serializers import (
     ContentBriefSerializer,
@@ -10,7 +15,6 @@ from apps.content_studio.serializers import (
     GenerateContentRequestSerializer,
     GeneratedContentSerializer,
 )
-from apps.content_studio.services import generate_brief, generate_content
 from apps.trends.models import Trend
 
 
@@ -27,8 +31,10 @@ class ContentBriefListCreateView(generics.ListCreateAPIView):
     serializer_class = ContentBriefSerializer
 
     def get_queryset(self):
-        queryset = ContentBrief.objects.select_related("trend").prefetch_related(
-            "generated_content"
+        queryset = (
+            ContentBrief.objects.filter(created_by=self.request.user)
+            .select_related("trend")
+            .prefetch_related("generated_content")
         )
         trend_slug = self.request.query_params.get("trend")
         if trend_slug:
@@ -39,23 +45,38 @@ class ContentBriefListCreateView(generics.ListCreateAPIView):
         req = GenerateBriefRequestSerializer(data=request.data)
         req.is_valid(raise_exception=True)
         trend = get_object_or_404(Trend, slug=req.validated_data["trend_slug"])
+        IsVerifiedUser().has_permission(request, self) or self.permission_denied(
+            request, message=IsVerifiedUser.message
+        )
+        enforce_ai_generation_quota(request.user)
 
-        try:
-            brief = generate_brief(
-                trend, user=request.user, perspective=req.validated_data.get("perspective", "")
-            )
-        except AIProviderError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        job = AIJob.objects.create(
+            created_by=request.user,
+            job_type=AIJob.JobType.GENERATE_BRIEF,
+            payload={"trend_id": str(trend.id), "perspective": req.validated_data.get("perspective", "")},
+        )
+        transaction.on_commit(lambda: enqueue_ai_job(job))
+        return Response(AIJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
 
-        return Response(ContentBriefSerializer(brief).data, status=status.HTTP_201_CREATED)
 
-
-class ContentBriefDetailView(generics.RetrieveAPIView):
+class ContentBriefDetailView(generics.RetrieveDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ContentBriefSerializer
 
     def get_queryset(self):
-        return ContentBrief.objects.select_related("trend").prefetch_related("generated_content")
+        return (
+            ContentBrief.objects.filter(created_by=self.request.user)
+            .select_related("trend")
+            .prefetch_related("generated_content")
+        )
+
+    def perform_destroy(self, instance):
+        # BaseModel deletion is intentionally a soft delete. Apply the same
+        # recoverable behaviour to every generated piece beneath this brief so
+        # a deleted brief cannot leave items in the owner's content library.
+        with transaction.atomic():
+            GeneratedContent.objects.filter(brief=instance).delete()
+            instance.delete()
 
 
 class GeneratedContentListCreateView(generics.ListCreateAPIView):
@@ -67,7 +88,9 @@ class GeneratedContentListCreateView(generics.ListCreateAPIView):
     serializer_class = GeneratedContentSerializer
 
     def get_queryset(self):
-        queryset = GeneratedContent.objects.select_related("brief__trend")
+        queryset = GeneratedContent.objects.filter(created_by=self.request.user).select_related(
+            "brief__trend"
+        )
         brief_id = self.request.query_params.get("brief")
         if brief_id:
             queryset = queryset.filter(brief_id=brief_id)
@@ -79,17 +102,24 @@ class GeneratedContentListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         req = GenerateContentRequestSerializer(data=request.data)
         req.is_valid(raise_exception=True)
-        brief = get_object_or_404(ContentBrief, id=req.validated_data["brief_id"])
+        brief = get_object_or_404(
+            ContentBrief, id=req.validated_data["brief_id"], created_by=request.user
+        )
+        IsVerifiedUser().has_permission(request, self) or self.permission_denied(
+            request, message=IsVerifiedUser.message
+        )
+        enforce_ai_generation_quota(request.user)
 
-        try:
-            content = generate_content(brief, req.validated_data["content_type"], user=request.user)
-        except AIProviderError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        job = AIJob.objects.create(
+            created_by=request.user,
+            job_type=AIJob.JobType.GENERATE_CONTENT,
+            payload={"brief_id": str(brief.id), "content_type": req.validated_data["content_type"]},
+        )
+        transaction.on_commit(lambda: enqueue_ai_job(job))
+        return Response(AIJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
 
-        return Response(GeneratedContentSerializer(content).data, status=status.HTTP_201_CREATED)
 
-
-class GeneratedContentDetailView(generics.RetrieveUpdateAPIView):
+class GeneratedContentDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Retrieve one piece, or PATCH {"is_saved": true/false} — the
     only field the API lets a client change directly (body edits go
     through the Phase 6 AI Chat refinement flow instead).
@@ -97,4 +127,6 @@ class GeneratedContentDetailView(generics.RetrieveUpdateAPIView):
 
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = GeneratedContentSerializer
-    queryset = GeneratedContent.objects.all()
+
+    def get_queryset(self):
+        return GeneratedContent.objects.filter(created_by=self.request.user).select_related("brief__trend")

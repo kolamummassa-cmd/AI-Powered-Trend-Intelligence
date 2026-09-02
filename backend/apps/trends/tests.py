@@ -7,8 +7,9 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import User
+from apps.core.models import AIJob
 from apps.trend_sources.models import Platform, RawTrendSignal
-from apps.trends.models import Category, TrendSourceLink, TrendStatus
+from apps.trends.models import Category, Trend, TrendSourceLink, TrendStatus
 from apps.trends.services import ingest_raw_signal, normalize_title
 
 
@@ -266,6 +267,19 @@ class TestTrendAPI:
         assert response.data["count"] == 1
         assert response.data["results"][0]["title"] == "Investor Relevant"
 
+    def test_filters_to_kuzana_relevant_trends(self, platform):
+        relevant = _ingest(_raw_signal(platform, "1", "Kenyan Fintech Signal"))
+        relevant.kuzana_relevance_score = 80
+        relevant.save(update_fields=["kuzana_relevance_score"])
+        irrelevant = _ingest(_raw_signal(platform, "2", "Unrelated Signal"))
+        irrelevant.kuzana_relevance_score = 20
+        irrelevant.save(update_fields=["kuzana_relevance_score"])
+
+        response = self._authed_client().get("/api/v1/trends/", {"kuzana_only": "true"})
+
+        assert response.status_code == 200
+        assert [row["slug"] for row in response.data["results"]] == [relevant.slug]
+
     def test_filter_high_priority(self, platform):
         high = _ingest(_raw_signal(platform, "1", "High Priority Trend"))
         high.trend_score = 80
@@ -346,7 +360,9 @@ class TestIngestSignalTask:
 @pytest.mark.django_db
 class TestReanalyzeTrend:
     def _authed_client(self):
-        user = User.objects.create_user(email="reanalyze@example.com", password="a-strong-pw1")
+        user = User.objects.create_user(
+            email="reanalyze@example.com", password="a-strong-pw1", is_verified=True
+        )
         token = RefreshToken.for_user(user)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
@@ -362,11 +378,11 @@ class TestReanalyzeTrend:
         trend = _ingest(_raw_signal(platform, "1", "Kenya's Fintech Boom"))
         client = self._authed_client()
 
-        with patch("apps.trend_analysis.tasks.analyze_trend_task.delay") as mock_delay:
+        with patch("apps.trends.views.enqueue_ai_job") as mock_enqueue:
             response = client.post(f"/api/v1/trends/{trend.slug}/reanalyze/")
 
         assert response.status_code == 202
-        mock_delay.assert_called_once_with(str(trend.id))
+        assert response.data["job_type"] == AIJob.JobType.REANALYZE_TREND
 
     def test_404_for_unknown_slug(self):
         client = self._authed_client()
@@ -457,4 +473,53 @@ class TestCheckTrendLifecycle:
 
         trend.refresh_from_db()
         assert trend.status == TrendStatus.ACTIVE
-        assert result == {"marked_expired": 0, "marked_expiring": 0}
+        assert result == {"marked_expired": 0, "marked_expiring": 0, "permanently_deleted": 0}
+
+    def test_purges_expired_trend_after_retention_when_it_has_no_content(self, platform):
+        from apps.trends.tasks import (
+            EXPIRED_AFTER_DAYS,
+            PURGE_EXPIRED_AFTER_DAYS,
+            check_trend_lifecycle,
+        )
+
+        trend = _ingest(_raw_signal(platform, "1", "Disposable Trend"))
+        trend.status = TrendStatus.EXPIRED
+        trend.expired_at = timezone.now() - timedelta(days=PURGE_EXPIRED_AFTER_DAYS + 1)
+        trend.last_seen_at = timezone.now() - timedelta(days=EXPIRED_AFTER_DAYS + 20)
+        trend.save(update_fields=["status", "expired_at", "last_seen_at"])
+
+        result = check_trend_lifecycle()
+
+        assert not Trend.all_objects.filter(id=trend.id).exists()
+
+    def test_keeps_expired_trend_after_retention_when_it_has_content(self, platform):
+        from apps.content_studio.models import ContentBrief
+        from apps.trends.tasks import PURGE_EXPIRED_AFTER_DAYS, check_trend_lifecycle
+
+        trend = _ingest(_raw_signal(platform, "1", "Kept Trend"))
+        trend.status = TrendStatus.EXPIRED
+        trend.expired_at = timezone.now() - timedelta(days=PURGE_EXPIRED_AFTER_DAYS + 1)
+        trend.save(update_fields=["status", "expired_at"])
+        user = User.objects.create_user(email="brief-owner@example.com", password="a-strong-passw0rd1")
+        ContentBrief.objects.create(trend=trend, created_by=user)
+
+        result = check_trend_lifecycle()
+
+        trend.refresh_from_db()
+        assert result["permanently_deleted"] == 0
+        assert trend.status == TrendStatus.EXPIRED
+
+    def test_keeps_expired_trend_marked_for_legal_retention(self, platform):
+        from apps.trends.tasks import PURGE_EXPIRED_AFTER_DAYS, check_trend_lifecycle
+
+        trend = _ingest(_raw_signal(platform, "1", "Retained Trend"))
+        trend.status = TrendStatus.EXPIRED
+        trend.retention_required = True
+        trend.expired_at = timezone.now() - timedelta(days=PURGE_EXPIRED_AFTER_DAYS + 1)
+        trend.save(update_fields=["status", "retention_required", "expired_at"])
+
+        result = check_trend_lifecycle()
+
+        trend.refresh_from_db()
+        assert result["permanently_deleted"] == 0
+        assert trend.status == TrendStatus.EXPIRED

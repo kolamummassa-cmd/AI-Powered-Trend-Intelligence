@@ -2,7 +2,6 @@ import { apiClient } from "@/lib/api/client";
 
 export interface AuthTokens {
   access: string;
-  refresh: string;
 }
 
 export interface AuthUser {
@@ -51,8 +50,8 @@ export async function login(payload: LoginPayload) {
   return data;
 }
 
-export async function logout(refresh: string) {
-  await apiClient.post("/auth/logout/", { refresh });
+export async function logout() {
+  await apiClient.post("/auth/logout/");
 }
 
 export async function verifyEmail(uid: string, token: string) {

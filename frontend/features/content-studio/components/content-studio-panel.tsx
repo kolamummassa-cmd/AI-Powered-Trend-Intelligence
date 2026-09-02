@@ -1,12 +1,15 @@
 "use client";
 
-import { BookmarkIcon, RefreshCwIcon, SparklesIcon } from "lucide-react";
-import { useState } from "react";
+import { BookmarkIcon, HashIcon, RefreshCwIcon, SparklesIcon, Trash2Icon, Wand2Icon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureEmptyState } from "@/components/ui/feature-empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
 import {
   CONTENT_TYPES,
   CONTENT_TYPE_LABELS,
@@ -17,6 +20,7 @@ import {
   useBriefsForTrend,
   useCreateBrief,
   useCreateGeneratedContent,
+  useDeleteContentBrief,
   useSetContentSaved,
 } from "@/features/content-studio/api/use-content-studio";
 import { AUDIENCE_LABELS, AUDIENCE_TYPES, type AudienceType } from "@/features/trends/api/trends-api";
@@ -45,10 +49,23 @@ export function ContentStudioPanel({
 }) {
   const { data, isLoading } = useBriefsForTrend(trendSlug);
   const createBrief = useCreateBrief(trendSlug);
-  const createContent = useCreateGeneratedContent(trendSlug);
+  const createContent = useCreateGeneratedContent();
   const setSaved = useSetContentSaved(trendSlug);
+  const deleteBrief = useDeleteContentBrief(trendSlug);
+  const queryClient = useQueryClient();
+  const [jobId, setJobId] = useState<string>();
+  const { data: job } = useAIJob(jobId);
+  const retryJob = useRetryAIJob();
+
+  useEffect(() => {
+    if (job?.status === "completed") {
+      void queryClient.invalidateQueries({ queryKey: ["content-briefs", trendSlug] });
+    }
+  }, [job?.status, queryClient, trendSlug]);
 
   const brief = data?.results[0];
+  const jobIsActive = job?.status === "queued" || job?.status === "running";
+  const jobLabel = job?.job_type.replaceAll("_", " ");
   // CONTENT PERSPECTIVE: defaults to the trend's best audience purely
   // as a starting point — the user can always change it before
   // generating, and it never auto-updates to match best_audience once
@@ -85,15 +102,30 @@ export function ContentStudioPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base">Content Studio</CardTitle>
           {brief && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => createBrief.mutate(perspective)}
-              disabled={createBrief.isPending}
-            >
-              <RefreshCwIcon />
-              {createBrief.isPending ? "Regenerating brief..." : "Regenerate brief"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
+                disabled={createBrief.isPending || jobIsActive}
+              >
+                <RefreshCwIcon />
+                {createBrief.isPending || jobIsActive ? "Queueing brief..." : "Regenerate brief"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm("Delete this brief and all of its generated content? This removes it from your library.")) {
+                    deleteBrief.mutate(brief.id);
+                  }
+                }}
+                disabled={deleteBrief.isPending}
+              >
+                <Trash2Icon />
+                Delete brief
+              </Button>
+            </div>
           )}
         </div>
         {perspectiveSelector}
@@ -103,22 +135,59 @@ export function ContentStudioPanel({
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
-        {!brief && (
-          <div className="rounded-lg border border-dashed border-border py-10 text-center">
-            <p className="mb-3 text-sm text-muted-foreground">
-              No content brief yet — generate one to unlock hooks, scripts, hashtags, and more
-              for this trend.
-            </p>
-            <Button onClick={() => createBrief.mutate(perspective)} disabled={createBrief.isPending}>
-              <SparklesIcon />
-              {createBrief.isPending ? "Generating brief..." : "Generate content brief"}
-            </Button>
-            {createBrief.isError && (
-              <p className="mt-2 text-sm text-danger">
-                Could not generate a brief. Check that an AI provider key is configured.
-              </p>
+        {job && (
+          <div className="rounded-md border border-border bg-muted/50 p-3 text-sm" role="status">
+            {job.status === "queued" && `Your ${jobLabel} is queued.`}
+            {job.status === "running" && `Generating ${jobLabel}…`}
+            {job.status === "completed" && "Generation complete — your content has refreshed."}
+            {job.status === "failed" && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>Generation failed: {job.error_message || "Please try again."}</span>
+                {job.can_retry && (
+                  <Button size="sm" variant="outline" onClick={() => retryJob.mutate(job.id, { onSuccess: (nextJob) => setJobId(nextJob.id) })}>
+                    Retry
+                  </Button>
+                )}
+              </div>
             )}
           </div>
+        )}
+        {!brief && (
+          <FeatureEmptyState
+            badge="Content Studio"
+            title="Turn this trend into publishable content in one click."
+            description="Generate a brief once, then produce as many hooks, scripts, and captions as you want from it — regenerating the brief is a separate, deliberate step."
+            action={
+              <>
+                <Button onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })} disabled={createBrief.isPending || jobIsActive}>
+                  <SparklesIcon />
+                  {createBrief.isPending || jobIsActive ? "Queueing brief..." : "Generate content brief"}
+                </Button>
+                {createBrief.isError && (
+                  <p className="mt-2 text-sm text-danger">
+                    Could not generate a brief. Check that an AI provider key is configured.
+                  </p>
+                )}
+              </>
+            }
+            benefits={[
+              {
+                icon: Wand2Icon,
+                title: "Create",
+                description: "Hooks, 30s and 60s scripts, and captions tailored to your angle.",
+              },
+              {
+                icon: HashIcon,
+                title: "Tag",
+                description: "Hashtags and a remix template generated alongside every piece.",
+              },
+              {
+                icon: BookmarkIcon,
+                title: "Save",
+                description: "Keep the versions you like and regenerate the rest anytime.",
+              },
+            ]}
+          />
         )}
 
         {brief && (
@@ -155,10 +224,16 @@ export function ContentStudioPanel({
               {CONTENT_TYPES.map((contentType) => {
                 const latest = latestByType(brief.generated_content, contentType);
                 const isGenerating =
-                  createContent.isPending && createContent.variables?.contentType === contentType;
+                  (createContent.isPending && createContent.variables?.contentType === contentType) || jobIsActive;
 
                 return (
-                  <div key={contentType} className="rounded-md border border-border p-3">
+                  <div key={contentType}>
+                    {contentType === "script_60" && (
+                      <p className="pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Advanced publishing assets
+                      </p>
+                    )}
+                  <div className="rounded-md border border-border p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">{CONTENT_TYPE_LABELS[contentType]}</p>
                       <div className="flex items-center gap-2">
@@ -183,12 +258,12 @@ export function ContentStudioPanel({
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            createContent.mutate({ briefId: brief.id, contentType })
+                            createContent.mutate({ briefId: brief.id, contentType }, { onSuccess: (nextJob) => setJobId(nextJob.id) })
                           }
                           disabled={isGenerating}
                         >
                           <RefreshCwIcon />
-                          {isGenerating ? "Generating..." : latest ? "Regenerate" : "Generate"}
+                          {isGenerating ? "Queueing..." : latest ? "Regenerate" : "Generate"}
                         </Button>
                       </div>
                     </div>
@@ -199,6 +274,7 @@ export function ContentStudioPanel({
                     ) : (
                       <p className="text-sm text-muted-foreground">Not generated yet.</p>
                     )}
+                  </div>
                   </div>
                 );
               })}

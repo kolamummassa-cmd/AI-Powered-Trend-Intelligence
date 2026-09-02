@@ -5,13 +5,21 @@ from apps.trends.models import AudienceType
 
 
 class GeneratedContentSerializer(serializers.ModelSerializer):
+    trend_title = serializers.CharField(source="brief.trend.title", read_only=True)
+    trend_slug = serializers.CharField(source="brief.trend.slug", read_only=True)
+    perspective = serializers.CharField(source="brief.perspective", read_only=True)
+    brief_context = serializers.CharField(source="brief.content_angle", read_only=True)
+
     class Meta:
         model = GeneratedContent
         fields = (
             "id",
             "brief",
+            "trend_title",
+            "trend_slug",
+            "perspective",
+            "brief_context",
             "content_type",
-            "body",
             "version",
             "is_saved",
             "model_used",
