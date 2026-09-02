@@ -10,7 +10,7 @@
  * like bg-primary / text-foreground automatically pick the right value.
  */
 :root {
-  --radius: 0.75rem; /* base radius -> radius-lg = 12px, radius-xl = 16px */
+  --radius: 0.7rem; /* compact editorial cards, not oversized soft UI */
 
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -21,8 +21,8 @@
   --popover: #ffffff;
   --popover-foreground: #0f172a;
 
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --primary: #f97316;
+  --primary-hover: #ea580c;
   --primary-foreground: #f8fafc;
 
   --secondary: #f1f5f9;
@@ -52,7 +52,7 @@
 
   --border: #e2e8f0;
   --input: #e2e8f0;
-  --ring: #2563eb;
+  --ring: #f97316;
 
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
@@ -71,8 +71,8 @@
   --popover: #172033;
   --popover-foreground: #f8fafc;
 
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --primary: #fb923c;
+  --primary-hover: #fdba74;
   --primary-foreground: #f8fafc;
 
   --secondary: #172033;
@@ -102,7 +102,7 @@
 
   --border: #243244;
   --input: #243244;
-  --ring: #2563eb;
+  --ring: #fb923c;
 
   --sidebar: #0f172a;
   --sidebar-foreground: #f8fafc;
@@ -168,8 +168,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-manrope);
+  --font-heading: var(--font-sora);
 }
 
 @layer base {
@@ -180,6 +180,16 @@
   body {
     background: var(--background);
     color: var(--foreground);
+    font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   }
 
   /* Keep native date/time picker icons visible in both themes. */
@@ -199,7 +209,8 @@
   }
 }
 
-/* A restrained grid keeps app pages structured without adding visual noise. */
+/* The app uses deliberately plain surfaces, keeping emphasis on evidence and
+   actions instead of a decorative dashboard background. */
 @layer components {
   .dashboard-backdrop {
     position: fixed;

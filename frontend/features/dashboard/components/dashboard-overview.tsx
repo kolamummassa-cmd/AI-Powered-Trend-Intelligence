@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, FlameIcon, LayoutGridIcon, SparklesIcon, TrendingUpIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -42,18 +42,16 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total trends" value={stats.total_trends} icon={LayoutGridIcon} />
+        <StatCard label="Total trends" value={stats.total_trends} />
         <StatCard
-          label="Active"
+          label="Active trends"
           value={stats.active_trends}
-          icon={TrendingUpIcon}
           accent="success"
         />
-        <StatCard label="New today" value={stats.new_today} icon={SparklesIcon} />
+        <StatCard label="New today" value={stats.new_today} />
         <StatCard
-          label="High priority"
+          label="High-priority trends"
           value={stats.high_priority_trends}
-          icon={FlameIcon}
           accent="warning"
         />
       </div>

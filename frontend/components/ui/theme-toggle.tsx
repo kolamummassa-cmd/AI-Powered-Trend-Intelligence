@@ -29,7 +29,7 @@ export function ThemeToggle() {
       aria-label={
         !mounted ? "Toggle theme" : theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
       }
-      className="flex h-11 w-11 items-center justify-center rounded-full bg-black/[0.04] transition-colors hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+      className="flex h-10 items-center gap-2 rounded-full bg-black/[0.04] px-3 text-sm font-medium transition-colors hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
     >
       {!mounted ? (
         <span className="size-4" />
@@ -38,6 +38,7 @@ export function ThemeToggle() {
       ) : (
         <MoonIcon className="size-4" />
       )}
+      <span>{!mounted ? "Theme" : theme === "dark" ? "Light mode" : "Dark mode"}</span>
     </button>
   );
 }

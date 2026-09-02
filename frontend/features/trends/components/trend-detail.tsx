@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, ExternalLinkIcon, RefreshCwIcon, ThumbsDownIcon, ThumbsUpIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ExternalLinkIcon, RefreshCwIcon, ThumbsDownIcon, ThumbsUpIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -88,9 +88,14 @@ export function TrendDetail({ slug }: { slug: string }) {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
+    <div className="space-y-6 pb-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="border border-primary/60 bg-primary/5 text-foreground hover:bg-primary/10 hover:text-foreground"
+        >
           <Link href="/trends">
             <ArrowLeftIcon />
             Back to trends
@@ -99,6 +104,7 @@ export function TrendDetail({ slug }: { slug: string }) {
         <Button
           variant="outline"
           size="sm"
+          className="border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           onClick={() => reanalyze.mutate(undefined, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
           disabled={reanalyze.isPending || jobIsActive}
         >
@@ -108,9 +114,10 @@ export function TrendDetail({ slug }: { slug: string }) {
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="max-w-4xl">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{displayTitle}</h1>
+            <span className="text-sm font-semibold tabular-nums text-muted-foreground">01</span>
+            <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">{displayTitle}</h1>
             <Badge variant={STATUS_VARIANT[trend.status]}>{trend.status}</Badge>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -162,35 +169,31 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
       {trend.summary && (
-        <p className="max-w-3xl break-words text-black/70 dark:text-white/70">{trend.summary}</p>
+        <p className="max-w-3xl break-words text-base leading-6 text-muted-foreground">{trend.summary}</p>
       )}
 
-      <ContentStudioPanel trendSlug={trend.slug} bestAudience={trend.best_audience || undefined} />
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <ContentStudioPanel trendSlug={trend.slug} bestAudience={trend.best_audience || undefined} />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <Badge variant={trend.source_freshness === "fresh" ? "success" : "outline"}>
-          {trend.source_freshness}
-        </Badge>
-        <span>{trend.source_count} independent source{trend.source_count === 1 ? "" : "s"}</span>
-        {trend.confidence_score !== null && <span>· AI confidence {trend.confidence_score}/100</span>}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <ScoreBar label="Trend score" score={trend.trend_score} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <ScoreBar label="Opportunity score" score={trend.opportunity_score} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <ScoreBar label="Confidence score" score={trend.confidence_score} />
-          </CardContent>
-        </Card>
+        <aside className="rounded-2xl border border-primary bg-secondary/75 p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-xl font-semibold tracking-tight">Evidence scores</h2>
+            <span className="text-xs font-medium tracking-[0.2em] text-muted-foreground">03</span>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            A clear view of how strong, actionable, and well-supported this trend is.
+          </p>
+          <div className="mt-6 space-y-5 rounded-xl border border-primary/60 bg-card p-4">
+            <ScoreBar label="Trend strength" score={trend.trend_score} />
+            <ScoreBar label="Opportunity to act" score={trend.opportunity_score} />
+            <ScoreBar label="Evidence confidence" score={trend.confidence_score} />
+          </div>
+          <div className="mt-4 rounded-lg border border-primary/60 bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
+            {analysis
+              ? `${trend.source_count} independent source${trend.source_count === 1 ? "" : "s"} · ${trend.source_freshness} evidence.`
+              : "No analysis yet. Select Analyze now to calculate these scores from the available sources."}
+          </div>
+        </aside>
       </div>
 
       {!analysis && (
@@ -336,8 +339,16 @@ export function TrendDetail({ slug }: { slug: string }) {
         </details>
       )}
 
-      <details className="rounded-lg border border-border bg-card">
-        <summary className="cursor-pointer px-6 py-4 text-base font-semibold">Sources ({trend.source_links.length})</summary>
+      <details className="group rounded-xl border border-primary bg-card shadow-sm transition-shadow hover:shadow-md">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4">
+          <span className="text-base font-semibold">Source evidence</span>
+          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span className="group-open:hidden">Show sources</span>
+            <span className="hidden group-open:inline">Hide sources</span>
+            <span className="tracking-[0.2em]">{trend.source_links.length} · 04</span>
+            <ChevronDownIcon className="size-4 transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
+          </span>
+        </summary>
         <Card className="border-0 shadow-none">
           <CardContent className="space-y-2 pt-2">
           {trend.source_links.length === 0 && (
@@ -346,7 +357,7 @@ export function TrendDetail({ slug }: { slug: string }) {
           {trend.source_links.map((link) => (
             <div
               key={`${link.platform_slug}-${link.created_at}`}
-              className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-2 rounded-md border border-primary/60 px-3 py-2 text-sm"
             >
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{link.platform}</Badge>

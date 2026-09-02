@@ -1,13 +1,12 @@
 "use client";
 
-import { BookmarkIcon, HashIcon, RefreshCwIcon, SparklesIcon, Trash2Icon, Wand2Icon } from "lucide-react";
+import { BookmarkIcon, RefreshCwIcon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FeatureEmptyState } from "@/components/ui/feature-empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
 import {
@@ -77,8 +76,8 @@ export function ContentStudioPanel({
   }
 
   const perspectiveSelector = (
-    <div className="flex items-center gap-2">
-      <label htmlFor="content-perspective" className="text-sm text-muted-foreground">
+    <div className="flex flex-col gap-2 sm:max-w-md">
+      <label htmlFor="content-perspective" className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
         Content Perspective
       </label>
       <select
@@ -97,10 +96,13 @@ export function ContentStudioPanel({
   );
 
   return (
-    <Card>
+    <Card className="h-full rounded-2xl shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-base">Content Studio</CardTitle>
+          <div className="flex items-baseline gap-3">
+            <CardTitle className="text-xl">Content Studio</CardTitle>
+            <span className="text-xs font-medium tracking-[0.2em] text-muted-foreground">02</span>
+          </div>
           {brief && (
             <div className="flex items-center gap-2">
               <Button
@@ -129,9 +131,8 @@ export function ContentStudioPanel({
           )}
         </div>
         {perspectiveSelector}
-        <p className="text-xs text-muted-foreground">
-          Controls the point of view used to generate the content angle, hooks, scripts, CTA,
-          hashtags, and remix template below — independent of the trend&apos;s best audience.
+        <p className="text-xs leading-5 text-muted-foreground">
+          Choose who this content is for. You can change the perspective before generating.
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -153,41 +154,35 @@ export function ContentStudioPanel({
           </div>
         )}
         {!brief && (
-          <FeatureEmptyState
-            badge="Content Studio"
-            title="Turn this trend into publishable content in one click."
-            description="Generate a brief once, then produce as many hooks, scripts, and captions as you want from it — regenerating the brief is a separate, deliberate step."
-            action={
-              <>
-                <Button onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })} disabled={createBrief.isPending || jobIsActive}>
-                  <SparklesIcon />
-                  {createBrief.isPending || jobIsActive ? "Queueing brief..." : "Generate content brief"}
+          <div className="space-y-5">
+            <Button
+              className="w-full"
+              onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
+              disabled={createBrief.isPending || jobIsActive}
+            >
+              <SparklesIcon />
+              {createBrief.isPending || jobIsActive ? "Queueing brief..." : "Generate content brief"}
+            </Button>
+            {createBrief.isError && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm">
+                <div>
+                  <p className="font-medium text-foreground">Could not generate a brief.</p>
+                  <p className="mt-1 text-muted-foreground">Check that an AI provider key with available credit is configured.</p>
+                </div>
+                <Button size="sm" variant="link" onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })}>
+                  Retry
                 </Button>
-                {createBrief.isError && (
-                  <p className="mt-2 text-sm text-danger">
-                    Could not generate a brief. Check that an AI provider key is configured.
-                  </p>
-                )}
-              </>
-            }
-            benefits={[
-              {
-                icon: Wand2Icon,
-                title: "Create",
-                description: "Hooks, 30s and 60s scripts, and captions tailored to your angle.",
-              },
-              {
-                icon: HashIcon,
-                title: "Tag",
-                description: "Hashtags and a remix template generated alongside every piece.",
-              },
-              {
-                icon: BookmarkIcon,
-                title: "Save",
-                description: "Keep the versions you like and regenerate the rest anytime.",
-              },
-            ]}
-          />
+              </div>
+            )}
+            <div className="border-t border-border pt-5">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">How it works</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <WorkflowStep number="1" title="Collect the signal" description="The source feed is recorded and linked as evidence." />
+                <WorkflowStep number="2" title="Assess the opportunity" description="Kuzana scores relevance, timing, and confidence." />
+                <WorkflowStep number="3" title="Draft the brief" description="Generate a practical angle from your chosen perspective." />
+              </div>
+            </div>
+          </div>
         )}
 
         {brief && (
@@ -292,6 +287,18 @@ function AngleBlurb({ label, text }: { label: string; text: string }) {
     <div className="space-y-1">
       <p className="text-sm font-medium text-foreground">{label}</p>
       <p className="text-sm text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+function WorkflowStep({ number, title, description }: { number: string; title: string; description: string }) {
+  return (
+    <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
+      <span className="text-sm font-semibold text-primary">{number}</span>
+      <div>
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+      </div>
     </div>
   );
 }

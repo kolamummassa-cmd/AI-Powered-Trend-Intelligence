@@ -38,7 +38,7 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
 
   return (
     <Link href={`/trends/${trend.slug}`} className="block">
-      <Card className="h-full transition-colors hover:border-primary/50">
+      <Card className="h-full border-border shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary hover:shadow-md">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-base">{displayTitle}</CardTitle>

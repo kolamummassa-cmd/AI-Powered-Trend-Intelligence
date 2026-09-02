@@ -1,20 +1,17 @@
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface EmptyStateBenefit {
-  icon: LucideIcon;
   title: string;
   description: string;
 }
 
-// Shared "nothing here yet" template — pill badge, bold black
-// headline, short description, one action, then a row of benefit
-// cards explaining what will show up once there's data. Modeled on
-// Hootsuite's onboarding screens (Perch/Lumen/etc): every empty state
-// in the app should feel designed, not like a placeholder.
+// Shared "nothing here yet" template — pill badge, clear headline,
+// short description, one action, then written next steps explaining
+// what will show up once there is data. Empty states must never rely
+// on a decorative icon to explain a task.
 export function FeatureEmptyState({
   badge,
   title,
@@ -46,15 +43,12 @@ export function FeatureEmptyState({
           {benefits.map((benefit) => (
             <Card key={benefit.title} className="border-border/70 bg-background/40">
               <CardHeader>
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <benefit.icon className="size-4" />
-                </span>
-                <CardTitle className="mt-2 text-sm text-black dark:text-white">
+                <CardTitle className="text-sm text-foreground">
                   {benefit.title}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-black/70 dark:text-white/70">{benefit.description}</p>
+                <p className="text-sm text-muted-foreground">{benefit.description}</p>
               </CardContent>
             </Card>
           ))}

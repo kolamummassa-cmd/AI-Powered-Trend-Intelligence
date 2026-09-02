@@ -23,8 +23,9 @@ export function NotificationBell() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="sm" className="relative gap-2">
           <BellIcon />
+          <span>Notifications</span>
           {Boolean(unreadCount) && (
             <Badge
               variant="destructive"
