@@ -70,7 +70,16 @@ class GeminiProvider(AIProvider):
                 },
                 timeout=60,
             )
-            response.raise_for_status()
+            if not response.ok:
+                try:
+                    error_message = response.json().get("error", {}).get("message", "")
+                except ValueError:
+                    error_message = ""
+                detail = error_message or "Gemini rejected the request."
+                raise AIProviderError(
+                    f"Gemini model '{model}' request failed "
+                    f"(HTTP {response.status_code}): {detail[:300]}"
+                )
             payload = response.json()
             parts = payload["candidates"][0]["content"]["parts"]
             text = "".join(part.get("text", "") for part in parts).strip()
@@ -78,6 +87,8 @@ class GeminiProvider(AIProvider):
             status_code = exc.response.status_code if exc.response is not None else None
             detail = f"HTTP {status_code}" if status_code else type(exc).__name__
             raise AIProviderError(f"Gemini request failed ({detail}).") from exc
+        except AIProviderError:
+            raise
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise AIProviderError("Gemini returned an unexpected response.") from exc
 

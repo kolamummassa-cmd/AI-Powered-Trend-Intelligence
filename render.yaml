@@ -49,6 +49,10 @@ services:
         value: gemini
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_SCORING_MODEL
+        value: gemini-3.1-flash-lite
+      - key: GEMINI_CONTENT_MODEL
+        value: gemini-3.1-flash-lite
       # Keep Gemini requests deliberate for the demo: Analyze now and
       # Generate content brief call Gemini, while incoming trends do not.
       - key: AI_AUTO_ANALYZE_NEW_TRENDS

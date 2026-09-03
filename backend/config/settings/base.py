@@ -245,8 +245,11 @@ GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 # signals, but only an explicit Analyze now / Generate content brief action
 # is allowed to spend an AI request unless this is switched on later.
 AI_AUTO_ANALYZE_NEW_TRENDS = env.bool("AI_AUTO_ANALYZE_NEW_TRENDS", default=False)
-GEMINI_SCORING_MODEL = env("GEMINI_SCORING_MODEL", default="gemini-2.5-flash")
-GEMINI_CONTENT_MODEL = env("GEMINI_CONTENT_MODEL", default="gemini-2.5-flash")
+# Gemini 2.5 models are unavailable to some newly created Developer API
+# projects. Use the current lightweight model by default, while allowing a
+# deployment to override either value through its environment variables.
+GEMINI_SCORING_MODEL = env("GEMINI_SCORING_MODEL", default="gemini-3.1-flash-lite")
+GEMINI_CONTENT_MODEL = env("GEMINI_CONTENT_MODEL", default="gemini-3.1-flash-lite")
 
 # ---------------------------------------------------------------------------
 # Auth (Phase 1)
