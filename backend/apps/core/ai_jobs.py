@@ -27,7 +27,10 @@ def _is_transient_error(exc):
     """Retry transport/provider availability failures, never bad inputs or model output."""
     cause = exc.__cause__ or exc
     name = type(cause).__name__.lower()
-    status_code = getattr(cause, "status_code", None)
+    status_code = getattr(exc, "status_code", None) or getattr(cause, "status_code", None)
+    if status_code is None:
+        response = getattr(cause, "response", None)
+        status_code = getattr(response, "status_code", None)
     return (
         any(token in name for token in ("connection", "timeout", "ratelimit", "internalserver"))
         or status_code == 429

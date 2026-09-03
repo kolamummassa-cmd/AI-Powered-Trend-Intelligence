@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 
 from celery import shared_task
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
@@ -38,11 +39,11 @@ def ingest_signal(self, raw_signal_id: str):
         logger.exception("Ingestion failed for raw signal %s", raw_signal_id)
         raise self.retry(exc=exc)
 
-    if is_new_trend:
-        # Only newly-created trends get analyzed automatically — a
-        # second (or fifth) platform reporting on an already-analyzed
-        # trend shouldn't burn another AI call. Re-analysis is
-        # available on demand (see analyze_now management command).
+    if is_new_trend and settings.AI_AUTO_ANALYZE_NEW_TRENDS:
+        # Automatic analysis is opt-in. Keeping it off is important for
+        # the demo/free tier: trend polling can ingest many signals, but
+        # manual Analyze now remains available for exactly the trends a
+        # user decides are worth spending an AI call on.
         #
         # Deliberately isolated from ingestion's own success/failure: a
         # missing AI_PROVIDER key or a provider outage should never
@@ -57,7 +58,7 @@ def ingest_signal(self, raw_signal_id: str):
             analyze_trend_task.delay(str(trend.id))
         except Exception:
             logger.exception(
-                "Auto-analysis failed to enqueue/run for trend %s — ingestion still succeeded. "
+                "Configured auto-analysis failed to enqueue/run for trend %s — ingestion still succeeded. "
                 "Backfill later with `manage.py analyze_now`.",
                 trend.id,
             )

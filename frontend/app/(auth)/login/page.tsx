@@ -34,7 +34,7 @@ export default function LoginPage() {
       onSuccess: (data) => {
         setSession(data);
         toast.success("Welcome back.");
-        router.push("/dashboard");
+        router.push(data.is_verified ? "/dashboard" : `/verify-email?email=${encodeURIComponent(data.email)}`);
       },
       onError: (error) => {
         toast.error(firstError(error, "Invalid email or password."));

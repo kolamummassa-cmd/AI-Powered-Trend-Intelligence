@@ -36,6 +36,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "anymail",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
@@ -179,6 +180,24 @@ CORS_ALLOW_CREDENTIALS = True
 # short-window DRF throttle. Set to 0 only for a deliberate unlimited plan.
 AI_GENERATION_DAILY_LIMIT = env.int("AI_GENERATION_DAILY_LIMIT", default=30)
 
+# ---------------------------------------------------------------------------
+# Transactional email
+# ---------------------------------------------------------------------------
+# Resend's hosted test sender can deliver only to the Resend account owner's
+# address before a custom domain is verified. That is ideal for the Render demo;
+# after buying a domain, change DEFAULT_FROM_EMAIL to an address on it.
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default=(
+        "anymail.backends.resend.EmailBackend"
+        if RESEND_API_KEY
+        else "django.core.mail.backends.console.EmailBackend"
+    ),
+)
+ANYMAIL = {"RESEND_API_KEY": RESEND_API_KEY}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Kuzana <onboarding@resend.dev>")
+
 # Optional error reporting. The SDK is imported only when explicitly configured,
 # which keeps local development dependency-light.
 SENTRY_DSN = env("SENTRY_DSN", default="")
@@ -220,6 +239,13 @@ CELERY_BEAT_SCHEDULE = {
 AI_PROVIDER = env("AI_PROVIDER", default="claude")
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+# Keep the first demo deliberately manual: polling feeds may collect many
+# signals, but only an explicit Analyze now / Generate content brief action
+# is allowed to spend an AI request unless this is switched on later.
+AI_AUTO_ANALYZE_NEW_TRENDS = env.bool("AI_AUTO_ANALYZE_NEW_TRENDS", default=False)
+GEMINI_SCORING_MODEL = env("GEMINI_SCORING_MODEL", default="gemini-2.5-flash")
+GEMINI_CONTENT_MODEL = env("GEMINI_CONTENT_MODEL", default="gemini-2.5-flash")
 
 # ---------------------------------------------------------------------------
 # Auth (Phase 1)
@@ -230,7 +256,6 @@ GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 
 # Where email links (verification, password reset) point to.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@trendintelligence.app")
 
 # ---------------------------------------------------------------------------
 # Trend sources (Phase 2)

@@ -14,6 +14,7 @@ from ai_providers.base import (
 )
 from ai_providers.claude_provider import ClaudeProvider
 from ai_providers.factory import get_ai_provider
+from ai_providers.gemini_provider import GeminiProvider
 from ai_providers.openai_provider import OpenAIProvider
 
 VALID_BRIEF_RESPONSE = {
@@ -222,6 +223,10 @@ class TestFactory:
         settings.AI_PROVIDER = "claude"
         provider = get_ai_provider("openai")
         assert isinstance(provider, OpenAIProvider)
+
+    def test_gemini_provider_is_available(self, settings):
+        settings.AI_PROVIDER = "gemini"
+        assert isinstance(get_ai_provider(), GeminiProvider)
 
     def test_unknown_provider_raises(self):
         with pytest.raises(AIProviderError):

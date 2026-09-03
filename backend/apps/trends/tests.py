@@ -314,16 +314,29 @@ class TestTrendAPI:
 
 @pytest.mark.django_db
 class TestIngestSignalTask:
-    def test_new_trend_triggers_analysis(self, platform):
+    def test_new_trend_triggers_analysis_only_when_enabled(self, platform, settings):
         from apps.trends.tasks import ingest_signal
 
+        signal = _raw_signal(platform, "1", "Kenya's Fintech Boom")
+
+        settings.AI_AUTO_ANALYZE_NEW_TRENDS = True
+        with patch("apps.trend_analysis.tasks.analyze_trend_task.delay") as mock_delay:
+            result = ingest_signal(str(signal.id))
+
+        assert result["is_new_trend"] is True
+        mock_delay.assert_called_once()
+
+    def test_new_trend_does_not_auto_analyze_by_default(self, platform, settings):
+        from apps.trends.tasks import ingest_signal
+
+        settings.AI_AUTO_ANALYZE_NEW_TRENDS = False
         signal = _raw_signal(platform, "1", "Kenya's Fintech Boom")
 
         with patch("apps.trend_analysis.tasks.analyze_trend_task.delay") as mock_delay:
             result = ingest_signal(str(signal.id))
 
         assert result["is_new_trend"] is True
-        mock_delay.assert_called_once()
+        mock_delay.assert_not_called()
 
     def test_merged_trend_does_not_trigger_analysis_again(self, platform):
         from apps.trends.tasks import ingest_signal
@@ -339,13 +352,14 @@ class TestIngestSignalTask:
         assert result["is_new_trend"] is False
         mock_delay.assert_not_called()
 
-    def test_analysis_failure_does_not_fail_ingestion(self, platform):
+    def test_analysis_failure_does_not_fail_ingestion(self, platform, settings):
         """A missing AI_PROVIDER key or provider outage should never
         undo ingestion, which has already committed by the time
         analysis is attempted (see apps.trends.tasks.ingest_signal)."""
         from apps.trends.tasks import ingest_signal
 
         signal = _raw_signal(platform, "1", "Kenya's Fintech Boom")
+        settings.AI_AUTO_ANALYZE_NEW_TRENDS = True
 
         with patch(
             "apps.trend_analysis.tasks.analyze_trend_task.delay",

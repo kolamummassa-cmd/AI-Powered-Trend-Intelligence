@@ -34,7 +34,7 @@ export default function RegisterPage() {
       onSuccess: (data) => {
         setSession(data);
         toast.success("Account created — check your email to verify it.");
-        router.push("/dashboard");
+        router.push(`/verify-email?email=${encodeURIComponent(data.user.email)}`);
       },
       onError: (error) => toast.error(firstError(error, "Could not create your account.")),
     });

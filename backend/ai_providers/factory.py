@@ -5,6 +5,7 @@ from ai_providers.base import AIProvider, AIProviderError
 _PROVIDERS = {
     "openai": "ai_providers.openai_provider.OpenAIProvider",
     "claude": "ai_providers.claude_provider.ClaudeProvider",
+    "gemini": "ai_providers.gemini_provider.GeminiProvider",
 }
 
 

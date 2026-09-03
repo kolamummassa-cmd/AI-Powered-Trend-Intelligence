@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/features/auth/components/form-error";
-import { useRequestPasswordReset } from "@/features/auth/api/use-auth-mutations";
+import { firstError, useRequestPasswordReset } from "@/features/auth/api/use-auth-mutations";
 import { type ForgotPasswordFormValues, forgotPasswordSchema } from "@/lib/validations/auth";
 
 export default function ForgotPasswordPage() {
   const resetMutation = useRequestPasswordReset();
+  const [submissionError, setSubmissionError] = useState("");
   const {
     register,
     handleSubmit,
@@ -46,7 +48,19 @@ export default function ForgotPasswordPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <form
-          onSubmit={handleSubmit((values) => resetMutation.mutate(values.email))}
+          onSubmit={handleSubmit((values) => {
+            setSubmissionError("");
+            resetMutation.mutate(values.email, {
+              onError: (error) => {
+                setSubmissionError(
+                  firstError(
+                    error,
+                    "We could not send a reset email. Confirm the address and try again.",
+                  ),
+                );
+              },
+            });
+          })}
           className="space-y-4"
         >
           <div className="space-y-1.5">
@@ -57,6 +71,7 @@ export default function ForgotPasswordPage() {
           <Button type="submit" className="w-full" disabled={resetMutation.isPending}>
             {resetMutation.isPending ? "Sending..." : "Send reset link"}
           </Button>
+          <FormError message={submissionError} />
         </form>
         <p className="text-center text-sm text-muted-foreground">
           <Link href="/login" className="text-primary hover:underline">
