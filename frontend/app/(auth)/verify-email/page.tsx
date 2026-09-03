@@ -68,7 +68,7 @@ function VerifyEmailContent() {
           {outcome === "pending" && "Confirming your email..."}
           {outcome === "success" && "Your email is verified. You can now use AI analysis and content generation."}
           {outcome === "awaiting" && "Check your inbox and open the verification link before using AI features."}
-          {outcome === "sent" && "A fresh verification link has been sent. Check your inbox and spam folder."}
+          {outcome === "sent" && "If this is the email address used for an unverified account, a verification link is on its way. Check your inbox and spam folder."}
           {outcome === "error" && errorMessage}
         </CardDescription>
       </CardHeader>
