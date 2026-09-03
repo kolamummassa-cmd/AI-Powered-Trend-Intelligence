@@ -6,11 +6,13 @@ import { Suspense, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { firstError, useVerifyEmail } from "@/features/auth/api/use-auth-mutations";
+import { useAuth } from "@/features/auth/context/auth-context";
 
 function VerifyEmailContent() {
   const params = useSearchParams();
   const router = useRouter();
   const emailFromLink = params.get("email") ?? "";
+  const { setSession } = useAuth();
   const verifyMutation = useVerifyEmail();
   const [outcome, setOutcome] = useState<"error" | "awaiting" | "verifying">("awaiting");
   const [errorMessage, setErrorMessage] = useState(
@@ -26,7 +28,10 @@ function VerifyEmailContent() {
     verifyMutation.mutate(
       { email: emailFromLink, code: verificationCode },
       {
-        onSuccess: () => router.replace("/dashboard"),
+        onSuccess: (data) => {
+          setSession(data);
+          router.replace("/dashboard");
+        },
         onError: (error) => {
           setOutcome("error");
           setErrorMessage(firstError(error, "This verification code is invalid or has expired."));

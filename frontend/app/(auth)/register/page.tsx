@@ -32,9 +32,7 @@ export default function RegisterPage() {
   function onSubmit(values: RegisterFormValues) {
     registerMutation.mutate(values, {
       onSuccess: (data) => {
-        setSession(data);
-        toast.success("Account created — check your email to verify it.");
-        router.push(`/verify-email?email=${encodeURIComponent(data.user.email)}`);
+        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
       },
       onError: (error) => toast.error(firstError(error, "Could not create your account.")),
     });

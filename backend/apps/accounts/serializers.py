@@ -9,6 +9,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.accounts.models import UserProfile, UserRole
+from apps.accounts.verification import pending_signup_for_code
 
 User = get_user_model()
 
@@ -37,15 +38,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
         return attrs
 
-    def create(self, validated_data):
-        role = validated_data.pop("role", UserRole.OTHER)
-        validated_data.pop("password_confirm")
-        password = validated_data.pop("password")
-
-        user = User.objects.create_user(password=password, **validated_data)
-        UserProfile.objects.create(user=user, role=role)
-        return user
-
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Same as simplejwt's default, plus a couple of fields on the
@@ -70,6 +62,14 @@ class VerifyEmailSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         email = attrs["email"].lower().strip()
+        pending_signup = pending_signup_for_code(email=email, code=attrs["code"])
+        if pending_signup:
+            attrs["pending_signup"] = pending_signup
+            return attrs
+
+        # This legacy branch lets accounts created before the code-first
+        # flow complete verification. New registrations never create User rows
+        # until this endpoint accepts their code.
         user = User.objects.filter(email=email, is_verified=False).first()
         expires_at = getattr(user, "email_verification_code_expires_at", None)
         if (

@@ -26,12 +26,17 @@ export interface RegisterPayload {
   role?: string;
 }
 
-export interface RegisterResponse extends AuthTokens {
+export interface AuthResponse extends AuthTokens {
   user: { id: string; email: string; is_verified: boolean };
 }
 
+export interface PendingRegistrationResponse {
+  detail: string;
+  email: string;
+}
+
 export async function register(payload: RegisterPayload) {
-  const { data } = await apiClient.post<RegisterResponse>("/auth/register/", payload);
+  const { data } = await apiClient.post<PendingRegistrationResponse>("/auth/register/", payload);
   return data;
 }
 
@@ -55,7 +60,7 @@ export async function logout() {
 }
 
 export async function verifyEmail(email: string, code: string) {
-  const { data } = await apiClient.post<{ detail: string }>("/auth/verify-email/", {
+  const { data } = await apiClient.post<AuthResponse>("/auth/verify-email/", {
     email,
     code,
   });
@@ -84,7 +89,7 @@ export async function confirmPasswordReset(uid: string, token: string, new_passw
 }
 
 export async function googleAuth(idToken: string) {
-  const { data } = await apiClient.post<RegisterResponse>("/auth/google/", {
+  const { data } = await apiClient.post<AuthResponse>("/auth/google/", {
     id_token: idToken,
   });
   return data;

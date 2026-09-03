@@ -1,15 +1,15 @@
-from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from django.core import mail
 from django.core.cache import cache
 from django.test import override_settings
-from django.contrib.auth.hashers import make_password
-from django.utils import timezone
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import User, UserRole
+from apps.accounts.models import User, UserProfile, UserRole
 
 LOCMEM = override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 
@@ -17,10 +17,12 @@ VALID_PASSWORD = "a-very-strong-passw0rd"
 
 
 @pytest.fixture(autouse=True)
-def _reset_throttle_cache():
+def _reset_throttle_cache(settings):
     # The "auth" scope throttle (10/min) uses the default cache, which
     # otherwise persists across every test in the run and starts
     # rejecting requests with 429 long before any test hits a real bug.
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
     cache.clear()
     yield
 
@@ -36,31 +38,34 @@ def _register(client, email="creator@example.com", password=VALID_PASSWORD, **ex
     return client.post("/api/v1/auth/register/", payload, format="json")
 
 
+def _verified_user(email="creator@example.com", password=VALID_PASSWORD):
+    user = User.objects.create_user(email=email, password=password, is_verified=True)
+    UserProfile.objects.create(user=user, role=UserRole.CREATOR)
+    return user
+
+
 @pytest.mark.django_db
 class TestRegistration:
-    def test_register_creates_user_and_profile_and_sets_refresh_cookie(self):
+    def test_register_keeps_signup_out_of_user_table_until_code_is_verified(self):
         client = APIClient()
         response = _register(client)
 
         assert response.status_code == 201
-        assert "access" in response.data
-        assert "refresh" not in response.data
-        assert "trend_intel_refresh" in response.cookies
-        assert response.cookies["trend_intel_refresh"]["httponly"]
-        user = User.objects.get(email="creator@example.com")
-        assert user.is_verified is False
-        assert user.profile.role == UserRole.CREATOR
+        assert response.data["email"] == "creator@example.com"
+        assert "access" not in response.data
+        assert "trend_intel_refresh" not in response.cookies
+        assert not User.objects.filter(email="creator@example.com").exists()
 
     def test_register_rejects_mismatched_passwords(self):
         client = APIClient()
         response = _register(client, password_confirm="something-else")
         assert response.status_code == 400
 
-    def test_register_rejects_duplicate_email(self):
+    def test_registering_again_replaces_the_short_lived_pending_signup(self):
         client = APIClient()
         _register(client)
         response = _register(client)
-        assert response.status_code == 400
+        assert response.status_code == 201
 
     def test_register_rejects_weak_password(self):
         client = APIClient()
@@ -79,7 +84,7 @@ class TestRegistration:
 class TestLogin:
     def test_login_with_correct_credentials(self):
         client = APIClient()
-        _register(client)
+        _verified_user()
 
         response = client.post(
             "/api/v1/auth/login/",
@@ -91,11 +96,11 @@ class TestLogin:
         assert "refresh" not in response.data
         assert "trend_intel_refresh" in response.cookies
         assert response.data["email"] == "creator@example.com"
-        assert response.data["is_verified"] is False
+        assert response.data["is_verified"] is True
 
     def test_login_with_wrong_password_is_rejected(self):
         client = APIClient()
-        _register(client)
+        _verified_user()
 
         response = client.post(
             "/api/v1/auth/login/",
@@ -109,8 +114,8 @@ class TestLogin:
 class TestTokenLifecycle:
     def test_refresh_issues_a_new_access_token(self):
         client = APIClient()
-        register_response = _register(client)
-        refresh = register_response.cookies["trend_intel_refresh"].value
+        user = _verified_user()
+        refresh = str(RefreshToken.for_user(user))
         client.cookies["trend_intel_refresh"] = refresh
 
         response = client.post("/api/v1/auth/token/refresh/", format="json")
@@ -120,11 +125,13 @@ class TestTokenLifecycle:
 
     def test_logout_blacklists_the_refresh_token(self):
         client = APIClient()
-        register_response = _register(client)
-        access = register_response.data["access"]
-        refresh = register_response.cookies["trend_intel_refresh"].value
+        user = _verified_user()
+        refresh_token = RefreshToken.for_user(user)
+        access = str(refresh_token.access_token)
+        refresh = str(refresh_token)
 
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        client.cookies["trend_intel_refresh"] = refresh
         logout_response = client.post("/api/v1/auth/logout/", format="json")
         assert logout_response.status_code == 205
 
@@ -141,32 +148,33 @@ class TestTokenLifecycle:
 
 @pytest.mark.django_db
 class TestEmailVerification:
-    def test_valid_code_marks_user_verified(self):
+    @patch("apps.accounts.verification.secrets.randbelow", return_value=123456)
+    def test_valid_code_creates_verified_user_after_verification(self, _mock_code):
         client = APIClient()
         _register(client)
-        user = User.objects.get(email="creator@example.com")
-        user.email_verification_code = make_password("123456")
-        user.email_verification_code_expires_at = timezone.now() + timedelta(minutes=15)
-        user.save(update_fields=["email_verification_code", "email_verification_code_expires_at"])
+        assert not User.objects.filter(email="creator@example.com").exists()
 
         response = client.post(
-            "/api/v1/auth/verify-email/", {"email": user.email, "code": "123456"}, format="json"
+            "/api/v1/auth/verify-email/",
+            {"email": "creator@example.com", "code": "123456"},
+            format="json",
         )
         assert response.status_code == 200
-        user.refresh_from_db()
+        assert "access" in response.data
+        user = User.objects.get(email="creator@example.com")
         assert user.is_verified is True
 
     def test_invalid_code_is_rejected(self):
         client = APIClient()
         _register(client)
-        user = User.objects.get(email="creator@example.com")
 
         response = client.post(
-            "/api/v1/auth/verify-email/", {"email": user.email, "code": "000000"}, format="json"
+            "/api/v1/auth/verify-email/",
+            {"email": "creator@example.com", "code": "000000"},
+            format="json",
         )
         assert response.status_code == 400
-        user.refresh_from_db()
-        assert user.is_verified is False
+        assert not User.objects.filter(email="creator@example.com").exists()
 
     def test_resend_verification_never_reveals_account_existence(self):
         client = APIClient()
@@ -183,8 +191,7 @@ class TestPasswordReset:
     @LOCMEM
     def test_full_reset_flow(self):
         client = APIClient()
-        _register(client)
-        mail.outbox.clear()  # ignore the verification email sent by registration
+        _verified_user()
 
         request_response = client.post(
             "/api/v1/auth/password-reset/", {"email": "creator@example.com"}, format="json"
@@ -216,9 +223,8 @@ class TestPasswordReset:
 
     def test_password_reset_blacklists_existing_refresh_tokens(self):
         client = APIClient()
-        register_response = _register(client)
-        refresh = register_response.cookies["trend_intel_refresh"].value
-        user = User.objects.get(email="creator@example.com")
+        user = _verified_user()
+        refresh = str(RefreshToken.for_user(user))
 
         from django.contrib.auth.tokens import default_token_generator
 
@@ -293,8 +299,9 @@ class TestGoogleAuth:
 class TestMeEndpoint:
     def _authed_client(self):
         client = APIClient()
-        register_response = _register(client)
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {register_response.data['access']}")
+        user = _verified_user()
+        token = RefreshToken.for_user(user)
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token.access_token}")
         return client
 
     def test_requires_authentication(self):

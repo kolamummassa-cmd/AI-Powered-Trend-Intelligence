@@ -1,7 +1,10 @@
 import logging
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
@@ -13,6 +16,7 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.emails import send_password_reset_email, send_verification_email
+from apps.accounts.models import UserProfile
 from apps.accounts.serializers import (
     EmailTokenObtainPairSerializer,
     GoogleAuthSerializer,
@@ -23,6 +27,12 @@ from apps.accounts.serializers import (
     RegisterSerializer,
     ResendVerificationSerializer,
     VerifyEmailSerializer,
+)
+from apps.accounts.verification import (
+    consume_pending_signup,
+    create_pending_signup,
+    new_verification_code,
+    resend_pending_signup_code,
 )
 
 User = get_user_model()
@@ -69,12 +79,7 @@ def _blacklist_user_refresh_tokens(user) -> None:
 
 
 class RegisterView(generics.CreateAPIView):
-    """Creates the account, sends a verification email, and logs the
-    user straight in (issues tokens immediately). Verification gates
-    specific actions later rather than blocking login outright — an
-    unverified user shouldn't be locked out of a product whose whole
-    pitch is speed.
-    """
+    """Sends a verification code before creating a real User record."""
 
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
@@ -83,21 +88,23 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        values = serializer.validated_data
+        email = values["email"]
+        code = create_pending_signup(
+            email=email,
+            password=values["password"],
+            role=values["role"],
+        )
 
         try:
-            send_verification_email(user)
+            send_verification_email(email, code)
         except Exception:
-            # Don't fail registration just because the email provider
-            # hiccuped — the user can hit resend-verification/.
-            logger.exception("Failed to send verification email to %s", user.email)
+            logger.exception("Failed to send verification email to %s", email)
+            raise ValidationError("We could not send a verification code. Please try again.")
 
-        return _auth_response(
-            {
-                "user": {"id": str(user.id), "email": user.email, "is_verified": user.is_verified},
-                **_tokens_for(user),
-            },
-            status.HTTP_201_CREATED,
+        return Response(
+            {"detail": "Verification code sent.", "email": email},
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -158,6 +165,26 @@ class VerifyEmailView(APIView):
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        pending_signup = serializer.validated_data.get("pending_signup")
+        if pending_signup:
+            try:
+                with transaction.atomic():
+                    user = User.objects.create(
+                        email=pending_signup["email"],
+                        password=pending_signup["password"],
+                        is_verified=True,
+                    )
+                    UserProfile.objects.create(user=user, role=pending_signup["role"])
+                    consume_pending_signup(user.email)
+            except IntegrityError:
+                raise ValidationError("An account with this email already exists. Please sign in.")
+            return _auth_response(
+                {
+                    "user": {"id": str(user.id), "email": user.email, "is_verified": True},
+                    **_tokens_for(user),
+                }
+            )
+
         user = serializer.validated_data["user"]
         user.is_verified = True
         user.email_verification_code = ""
@@ -169,7 +196,12 @@ class VerifyEmailView(APIView):
                 "email_verification_code_expires_at",
             ]
         )
-        return Response({"detail": "Email verified."})
+        return _auth_response(
+            {
+                "user": {"id": str(user.id), "email": user.email, "is_verified": True},
+                **_tokens_for(user),
+            }
+        )
 
 
 class ResendVerificationView(APIView):
@@ -181,9 +213,23 @@ class ResendVerificationView(APIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"].lower().strip()
 
-        user = User.objects.filter(email=email, is_verified=False).first()
-        if user:
-            send_verification_email(user)
+        code = resend_pending_signup_code(email)
+        if code:
+            send_verification_email(email, code)
+        else:
+            # Support an account created by the earlier implementation until
+            # it verifies; new sign-ups are held only in the cache.
+            user = User.objects.filter(email=email, is_verified=False).first()
+            if user:
+                code = new_verification_code()
+                user.email_verification_code = make_password(code)
+                user.email_verification_code_expires_at = timezone.now() + timedelta(
+                    minutes=settings.EMAIL_VERIFICATION_CODE_TTL_MINUTES
+                )
+                user.save(
+                    update_fields=["email_verification_code", "email_verification_code_expires_at"]
+                )
+                send_verification_email(email, code)
 
         # Same response whether or not the account exists / is already
         # verified — this endpoint must not leak account existence.
