@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Manrope, Sora } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     "From trend detected to publishable content, in under 30 minutes.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
