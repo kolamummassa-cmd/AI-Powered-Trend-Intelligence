@@ -160,7 +160,15 @@ class VerifyEmailView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         user.is_verified = True
-        user.save(update_fields=["is_verified"])
+        user.email_verification_code = ""
+        user.email_verification_code_expires_at = None
+        user.save(
+            update_fields=[
+                "is_verified",
+                "email_verification_code",
+                "email_verification_code_expires_at",
+            ]
+        )
         return Response({"detail": "Email verified."})
 
 

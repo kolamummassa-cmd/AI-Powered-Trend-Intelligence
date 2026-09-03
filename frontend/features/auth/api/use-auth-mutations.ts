@@ -33,8 +33,8 @@ export function useLogin() {
 
 export function useVerifyEmail() {
   return useMutation({
-    mutationFn: ({ uid, token }: { uid: string; token: string }) =>
-      authApi.verifyEmail(uid, token),
+    mutationFn: ({ email, code }: { email: string; code: string }) =>
+      authApi.verifyEmail(email, code),
   });
 }
 

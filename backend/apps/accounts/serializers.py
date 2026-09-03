@@ -1,13 +1,14 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.accounts.models import UserProfile, UserRole
-from apps.accounts.tokens import email_verification_token
 
 User = get_user_model()
 
@@ -64,18 +65,21 @@ class LogoutSerializer(serializers.Serializer):
 
 
 class VerifyEmailSerializer(serializers.Serializer):
-    uid = serializers.CharField()
-    token = serializers.CharField()
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=6, max_length=6)
 
     def validate(self, attrs):
-        try:
-            user_id = force_str(urlsafe_base64_decode(attrs["uid"]))
-            user = User.objects.get(pk=user_id)
-        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
-            raise serializers.ValidationError("Invalid verification link.")
-
-        if not email_verification_token.check_token(user, attrs["token"]):
-            raise serializers.ValidationError("This verification link is invalid or has expired.")
+        email = attrs["email"].lower().strip()
+        user = User.objects.filter(email=email, is_verified=False).first()
+        expires_at = getattr(user, "email_verification_code_expires_at", None)
+        if (
+            not user
+            or not user.email_verification_code
+            or not expires_at
+            or expires_at <= timezone.now()
+            or not check_password(attrs["code"], user.email_verification_code)
+        ):
+            raise serializers.ValidationError("This verification code is invalid or has expired.")
 
         attrs["user"] = user
         return attrs

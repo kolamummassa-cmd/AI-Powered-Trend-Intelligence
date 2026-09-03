@@ -30,6 +30,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
+    email_verification_code = models.CharField(max_length=128, blank=True)
+    email_verification_code_expires_at = models.DateTimeField(null=True, blank=True)
 
     auth_provider = models.CharField(
         max_length=20, choices=AuthProvider.choices, default=AuthProvider.EMAIL

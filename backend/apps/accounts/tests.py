@@ -1,15 +1,15 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from django.core import mail
 from django.core.cache import cache
 from django.test import override_settings
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User, UserRole
-from apps.accounts.tokens import email_verification_token
 
 LOCMEM = override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 
@@ -141,29 +141,28 @@ class TestTokenLifecycle:
 
 @pytest.mark.django_db
 class TestEmailVerification:
-    def test_valid_token_marks_user_verified(self):
+    def test_valid_code_marks_user_verified(self):
         client = APIClient()
         _register(client)
         user = User.objects.get(email="creator@example.com")
-
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = email_verification_token.make_token(user)
+        user.email_verification_code = make_password("123456")
+        user.email_verification_code_expires_at = timezone.now() + timedelta(minutes=15)
+        user.save(update_fields=["email_verification_code", "email_verification_code_expires_at"])
 
         response = client.post(
-            "/api/v1/auth/verify-email/", {"uid": uid, "token": token}, format="json"
+            "/api/v1/auth/verify-email/", {"email": user.email, "code": "123456"}, format="json"
         )
         assert response.status_code == 200
         user.refresh_from_db()
         assert user.is_verified is True
 
-    def test_invalid_token_is_rejected(self):
+    def test_invalid_code_is_rejected(self):
         client = APIClient()
         _register(client)
         user = User.objects.get(email="creator@example.com")
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
 
         response = client.post(
-            "/api/v1/auth/verify-email/", {"uid": uid, "token": "not-a-real-token"}, format="json"
+            "/api/v1/auth/verify-email/", {"email": user.email, "code": "000000"}, format="json"
         )
         assert response.status_code == 400
         user.refresh_from_db()

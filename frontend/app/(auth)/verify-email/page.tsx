@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,39 +11,33 @@ import { firstError, useResendVerification, useVerifyEmail } from "@/features/au
 
 function VerifyEmailContent() {
   const params = useSearchParams();
-  const uid = params.get("uid");
-  const token = params.get("token");
   const emailFromLink = params.get("email") ?? "";
   const verifyMutation = useVerifyEmail();
   const resendMutation = useResendVerification();
-  const hasParams = Boolean(uid && token);
-  // Computed directly from the URL params available at first render —
-  // no need for an effect just to derive state that's already known
-  // synchronously (only the actual async verification call below needs one).
-  const [outcome, setOutcome] = useState<"pending" | "success" | "error" | "awaiting" | "sent">(
-    hasParams ? "pending" : "awaiting",
-  );
+  const [outcome, setOutcome] = useState<"success" | "error" | "awaiting" | "sent">("awaiting");
   const [errorMessage, setErrorMessage] = useState(
     "",
   );
   const [email, setEmail] = useState(emailFromLink);
+  const [code, setCode] = useState("");
 
-  useEffect(() => {
-    if (!uid || !token) return;
+  function verifyCode() {
+    if (!email.trim() || code.trim().length !== 6) {
+      setOutcome("error");
+      setErrorMessage("Enter the email address used to create your account and its six-digit code.");
+      return;
+    }
     verifyMutation.mutate(
-      { uid, token },
+      { email: email.trim(), code: code.trim() },
       {
         onSuccess: () => setOutcome("success"),
         onError: (error) => {
           setOutcome("error");
-          setErrorMessage(firstError(error, "This verification link is invalid or has expired."));
+          setErrorMessage(firstError(error, "This verification code is invalid or has expired."));
         },
       },
     );
-    // Only ever run once per mount, against whatever uid/token showed
-    // up in the URL — not on every re-render of the mutation object.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, token]);
+  }
 
   function resendVerification() {
     if (!email.trim()) {
@@ -65,15 +59,14 @@ function VerifyEmailContent() {
       <CardHeader>
         <CardTitle>Email verification</CardTitle>
         <CardDescription>
-          {outcome === "pending" && "Confirming your email..."}
           {outcome === "success" && "Your email is verified. You can now use AI analysis and content generation."}
-          {outcome === "awaiting" && "Check your inbox and open the verification link before using AI features."}
-          {outcome === "sent" && "If this is the email address used for an unverified account, a verification link is on its way. Check your inbox and spam folder."}
+          {outcome === "awaiting" && "Enter the six-digit code sent to your email before using AI features."}
+          {outcome === "sent" && "If this is the email address used for an unverified account, a six-digit code is on its way. Check your inbox and spam folder."}
           {outcome === "error" && errorMessage}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {!hasParams && outcome !== "success" && (
+        {outcome !== "success" && (
           <>
             <Input
               type="email"
@@ -83,8 +76,19 @@ function VerifyEmailContent() {
               autoComplete="email"
               aria-label="Email address"
             />
+            <Input
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="Six-digit verification code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              aria-label="Six-digit verification code"
+            />
+            <Button className="w-full" onClick={verifyCode} disabled={verifyMutation.isPending}>
+              {verifyMutation.isPending ? "Verifying code..." : "Verify email"}
+            </Button>
             <Button className="w-full" onClick={resendVerification} disabled={resendMutation.isPending}>
-              {resendMutation.isPending ? "Sending verification email..." : "Resend verification email"}
+              {resendMutation.isPending ? "Sending verification code..." : "Resend verification code"}
             </Button>
           </>
         )}

@@ -54,10 +54,10 @@ export async function logout() {
   await apiClient.post("/auth/logout/");
 }
 
-export async function verifyEmail(uid: string, token: string) {
+export async function verifyEmail(email: string, code: string) {
   const { data } = await apiClient.post<{ detail: string }>("/auth/verify-email/", {
-    uid,
-    token,
+    email,
+    code,
   });
   return data;
 }

@@ -197,6 +197,7 @@ EMAIL_BACKEND = env(
 )
 ANYMAIL = {"RESEND_API_KEY": RESEND_API_KEY}
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Kuzana <onboarding@resend.dev>")
+EMAIL_VERIFICATION_CODE_TTL_MINUTES = env.int("EMAIL_VERIFICATION_CODE_TTL_MINUTES", default=15)
 
 # Optional error reporting. The SDK is imported only when explicitly configured,
 # which keeps local development dependency-light.
