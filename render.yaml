@@ -46,7 +46,13 @@ services:
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
       - key: AI_PROVIDER
-        value: claude
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      # Keep Gemini requests deliberate for the demo: Analyze now and
+      # Generate content brief call Gemini, while incoming trends do not.
+      - key: AI_AUTO_ANALYZE_NEW_TRENDS
+        value: "False"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
