@@ -83,13 +83,13 @@ class PublicTrendingTickerView(APIView):
         titles = cache.get(cache_key)
         if titles is None:
             titles = list(
-            Trend.objects.filter(
-                Q(content_creator_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                | Q(founder_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                | Q(investor_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-            )
-            .order_by("-trend_score", "-last_seen_at")
-            .values_list("title", flat=True)[:20]
+                Trend.objects.filter(
+                    Q(content_creator_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
+                    | Q(founder_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
+                    | Q(investor_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
+                )
+                .order_by("-trend_score", "-last_seen_at")
+                .values_list("title", flat=True)[:20]
             )
             cache.set(cache_key, titles, timeout=60)
         return Response({"titles": titles})

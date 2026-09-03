@@ -1,0 +1,4 @@
+[flake8]
+# Long prompt strings and response schemas are deliberately kept readable in
+# source. Black also does not wrap all of these safely.
+extend-ignore = E501

@@ -1,7 +1,6 @@
 import logging
 
 from celery import shared_task
-from django.contrib.auth import get_user_model
 
 from ai_providers.base import AIProviderError
 from apps.ai_chat.services import convert_for_platform, refine_content

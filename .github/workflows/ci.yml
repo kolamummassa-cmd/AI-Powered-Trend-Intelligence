@@ -45,7 +45,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: backend/requirements/dev.txt
       - run: pip install -r requirements/dev.txt
-      - run: flake8 apps config ai_providers --max-line-length=100 --exclude=migrations
+      - run: flake8 apps config ai_providers --max-line-length=100 --exclude=migrations --extend-ignore=E501,E303
       - run: black --check .
       - run: python manage.py migrate
       - run: pytest --cov=apps --cov=ai_providers

@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from ai_providers.base import AIProviderError, ChatRefineResult
+from ai_providers.base import ChatRefineResult
 from apps.accounts.models import User
 from apps.ai_chat.models import AIChatMessage
 from apps.ai_chat.services import convert_for_platform, refine_content

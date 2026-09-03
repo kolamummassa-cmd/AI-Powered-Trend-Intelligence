@@ -397,6 +397,7 @@ class TestReanalyzeTrend:
 
         assert response.status_code == 202
         assert response.data["job_type"] == AIJob.JobType.REANALYZE_TREND
+        mock_enqueue.assert_called_once()
 
     def test_404_for_unknown_slug(self):
         client = self._authed_client()
@@ -502,7 +503,7 @@ class TestCheckTrendLifecycle:
         trend.last_seen_at = timezone.now() - timedelta(days=EXPIRED_AFTER_DAYS + 20)
         trend.save(update_fields=["status", "expired_at", "last_seen_at"])
 
-        result = check_trend_lifecycle()
+        check_trend_lifecycle()
 
         assert not Trend.all_objects.filter(id=trend.id).exists()
 
