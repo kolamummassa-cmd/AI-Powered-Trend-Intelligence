@@ -10,7 +10,7 @@ export function PlatformDistributionCard({ data }: { data: PlatformDistribution[
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Kuzana source coverage</CardTitle>
+        <CardTitle className="text-base">TrendJack Hunter source coverage</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {data.length === 0 && (
@@ -21,12 +21,12 @@ export function PlatformDistributionCard({ data }: { data: PlatformDistribution[
         {data.length > 0 && (
           <>
             <div className="rounded-md border border-accent/30 bg-accent/5 p-3 text-sm">
-              <p className="font-medium">Kuzana core</p>
+              <p className="font-medium">Priority sources</p>
               <p className="mt-1 text-muted-foreground">
                 {coreSources.length} source{coreSources.length === 1 ? "" : "s"} · {coreCount} trend{coreCount === 1 ? "" : "s"}
               </p>
             </div>
-            <SourceRows rows={coreSources} emptyMessage="No Kuzana-core sources are active yet." />
+            <SourceRows rows={coreSources} emptyMessage="No priority sources are active yet." />
             <details className="rounded-md border border-border p-3">
               <summary className="cursor-pointer text-sm font-medium">
                 Global signal sources · {globalSources.length} source{globalSources.length === 1 ? "" : "s"} · {globalCount} trends

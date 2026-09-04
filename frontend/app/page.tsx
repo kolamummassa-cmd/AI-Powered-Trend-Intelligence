@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ActivityIcon,
   ArrowRightIcon,
   BrainCircuitIcon,
   FilterIcon,
@@ -14,6 +13,7 @@ import {
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { TrendJackBrand } from "@/components/brand/trendjack-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -68,12 +68,7 @@ export default function LandingPage() {
     <div className="relative flex flex-1 flex-col bg-background text-foreground">
       <div className="dashboard-backdrop" aria-hidden="true" />
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/95 px-4 py-4 backdrop-blur-[18px] sm:px-8">
-        <div className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#f97316,#fb923c_55%,#14b8a6)] text-white shadow-[0_0_20px_rgba(249,115,22,0.35)]">
-            <ActivityIcon className="size-4" />
-          </span>
-          AI-Powered Trend Intelligence
-        </div>
+        <TrendJackBrand />
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {!isLoading && isAuthenticated ? (
@@ -197,12 +192,7 @@ export default function LandingPage() {
       <footer className="relative z-10 mt-8 bg-slate-950 px-4 py-12 text-slate-300 sm:px-8 sm:py-16">
         <div className="mx-auto grid w-full max-w-5xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
           <div className="max-w-xs">
-            <div className="flex items-center gap-2 font-semibold tracking-tight text-white">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#f97316,#fb923c_55%,#14b8a6)] text-white">
-                <ActivityIcon className="size-4" />
-              </span>
-              Kuzana
-            </div>
+            <TrendJackBrand className="text-white" />
             <p className="mt-4 text-sm leading-6 text-slate-400">
               Find the conversations worth acting on, then turn them into a clear next move.
             </p>
@@ -237,8 +227,8 @@ export default function LandingPage() {
         </div>
 
         <div className="mx-auto mt-12 flex w-full max-w-5xl flex-col gap-3 border-t border-white/10 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 Kuzana. Built for people acting early.</p>
-          <p>AI-Powered Trend Intelligence · Built by Foluxnova</p>
+          <p>© 2026 TrendJack Hunter. Built for people acting early.</p>
+          <p>Trend intelligence for people who act early · Built by Foluxnova</p>
         </div>
       </footer>
     </div>

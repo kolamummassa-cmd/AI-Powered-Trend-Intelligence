@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 
 from apps.trend_sources.models import Platform
 
-# RSS is active by default. Kuzana-focused X and YouTube Shorts feeds are
+# RSS is active by default. TrendJack Hunter-focused X and YouTube Shorts feeds are
 # also seeded below, but deliberately disabled until an operator supplies the
 # required official API credentials and explicitly enables them. This avoids a
 # local development startup endlessly retrying an unauthenticated source.
@@ -127,7 +127,7 @@ DEFAULT_PLATFORMS = [
         "kuzana_priority_weight": 80,
         "is_active": True,
     },
-    # Kuzana social feeds. These are deliberately narrow searches: YouTube
+    # TrendJack Hunter social feeds. These are deliberately narrow searches: YouTube
     # and X do not expose a reliable general "what is trending in Kenya"
     # firehose to ordinary API accounts, so focused business/founder queries
     # produce a more useful and explainable signal set.
@@ -213,7 +213,7 @@ DEACTIVATE_SLUGS = [
 
 class Command(BaseCommand):
     help = (
-        "Creates starter RSS and disabled Kuzana social Platform rows if they don't already exist, "
+        "Creates starter RSS and disabled TrendJack Hunter social Platform rows if they don't already exist, "
         "and deactivates legacy generic social platforms from earlier phases. "
         "Idempotent — safe to run on every deploy."
     )

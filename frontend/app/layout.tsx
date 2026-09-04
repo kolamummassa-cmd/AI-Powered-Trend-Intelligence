@@ -31,9 +31,9 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "AI-Powered Trend Intelligence",
+  title: "TrendJack Hunter",
   description:
-    "From trend detected to publishable content, in under 30 minutes.",
+    "Spot useful trends early and turn them into practical next steps.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

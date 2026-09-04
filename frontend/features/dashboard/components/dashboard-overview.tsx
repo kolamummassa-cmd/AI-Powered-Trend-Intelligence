@@ -57,7 +57,7 @@ export function DashboardOverview() {
       </div>
 
       <section className="rounded-xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
-        <p className="text-sm font-medium text-primary">Recommended Kuzana opportunity</p>
+        <p className="text-sm font-medium text-primary">Recommended TrendJack opportunity</p>
         {!highPriority && <Skeleton className="mt-3 h-28 w-full" />}
         {recommended ? (
           <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

@@ -13,7 +13,7 @@ X_SLUGS = ("x-kenyan-founders-smes", "x-african-funding-business")
 
 class Command(BaseCommand):
     help = (
-        "Enables the seeded Kuzana YouTube Shorts and X feeds after their official "
+        "Enables the seeded TrendJack Hunter YouTube Shorts and X feeds after their official "
         "API credentials are configured."
     )
 
@@ -25,7 +25,7 @@ class Command(BaseCommand):
             missing.append("X_BEARER_TOKEN")
         if missing:
             raise CommandError(
-                "Kuzana social feeds remain disabled. Configure "
+                "TrendJack Hunter social feeds remain disabled. Configure "
                 + ", ".join(missing)
                 + " in backend/.env first."
             )
@@ -43,4 +43,4 @@ class Command(BaseCommand):
         updated = Platform.objects.filter(slug__in=expected, is_active=False).update(
             is_active=True
         )
-        self.stdout.write(self.style.SUCCESS(f"Enabled {updated} Kuzana social feed(s)."))
+        self.stdout.write(self.style.SUCCESS(f"Enabled {updated} TrendJack Hunter social feed(s)."))

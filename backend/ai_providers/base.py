@@ -222,7 +222,7 @@ lifecycle stage
 cover this trend (not generic advice — reference the actual trend)
 - summary: string, 2-3 sentence neutral summary of the trend itself
 - category_suggestion: short string category name (e.g. "Fintech", "AI Tools", "Politics"), or null
-- kuzana_relevance_score: integer 0-100. Score relevance for Kuzana: Kenyan founders, aspiring \
+- kuzana_relevance_score: integer 0-100. Score relevance for TrendJack Hunter: Kenyan founders, aspiring \
 entrepreneurs, SME owners, and ambitious young professionals. Give a high score only for practical \
 entrepreneurship, money, business, startup, career, creator-economy, or founder-culture value.
 - kuzana_relevance_reason: one sentence explaining the Kenya/East Africa or practical founder connection. \
@@ -234,9 +234,9 @@ Do not invent a local connection; say why a global story offers a useful lesson 
 - kuzana_content_format: exactly one practical format: "explainer", "hot take", "case study", \
 "myth bust", "founder story", or "practical playbook"
 - kuzana_practical_takeaway: one concrete action or lesson for a Kenyan founder; empty only when irrelevant
-- opportunity_headline: a clear 8-14 word Kuzana-facing opportunity headline. It must be a defensible
+- opportunity_headline: a clear 8-14 word TrendJack Hunter opportunity headline. It must be a defensible
 interpretation of the supplied sources, not a rewritten fact, not clickbait, and must not invent Kenyan
-connections. Return an empty string if the evidence does not support a useful Kuzana angle.
+connections. Return an empty string if the evidence does not support a useful TrendJack Hunter angle.
 - founder_hook: one short, specific prompt for a founder to consider. Return an empty string when no
 defensible founder implication exists.
 - investor_hook: one short, specific prompt for an investor to consider. Return an empty string when no
@@ -339,8 +339,8 @@ into publishable short-form content for founders, entrepreneurs, investors, and 
 a trend and why it matters, respond with ONLY a JSON object (no markdown, no commentary) with \
 exactly these keys:
 
-Kuzana's audience is Kenyan founders, aspiring entrepreneurs, SME owners, and ambitious young \
-professionals. Ground each angle in the supplied Kuzana editorial context. Translate global news \
+TrendJack Hunter's audience is Kenyan founders, aspiring entrepreneurs, SME owners, and ambitious young \
+professionals. Ground each angle in the supplied TrendJack Hunter editorial context. Translate global news \
 into a practical local lesson when that context says it is a global lesson; never invent Kenyan \
 facts, statistics, companies, or endorsements.
 
@@ -496,7 +496,7 @@ class AIProvider(ABC):
                 summary = sanitize_untrusted_source_text(src.summary, 300)
                 lines.append(
                     f"- [{src.platform}; credibility={src.credibility_weight}; "
-                    f"Kuzana priority={src.kuzana_priority_weight}; relevance={src.relevance_score}] "
+                    f"TrendJack priority={src.kuzana_priority_weight}; relevance={src.relevance_score}] "
                     f"{title}: {summary}"
                 )
             lines.append("</untrusted_source_snippets>")
@@ -524,21 +524,21 @@ class AIProvider(ABC):
         if context.estimated_lifespan:
             lines.append(f"Estimated lifespan: {context.estimated_lifespan}")
         lines.append(
-            "Kuzana editorial lens: make this useful to Kenyan founders, aspiring entrepreneurs, "
+            "TrendJack Hunter editorial lens: make this useful to Kenyan founders, aspiring entrepreneurs, "
             "SME owners, or ambitious young professionals. Avoid invented local facts."
         )
         if context.kuzana_relevance_reason:
-            lines.append(f"Why it is Kuzana-relevant: {context.kuzana_relevance_reason}")
+            lines.append(f"Why it is TrendJack-relevant: {context.kuzana_relevance_reason}")
         if context.opportunity_headline:
-            lines.append(f"Kuzana opportunity framing: {context.opportunity_headline}")
+            lines.append(f"TrendJack opportunity framing: {context.opportunity_headline}")
         if context.kuzana_theme:
-            lines.append(f"Kuzana theme: {context.kuzana_theme}")
+            lines.append(f"TrendJack theme: {context.kuzana_theme}")
         if context.kuzana_geo_relevance:
             lines.append(f"Geographic relevance: {context.kuzana_geo_relevance}")
         if context.kuzana_audience:
-            lines.append(f"Kuzana audience: {context.kuzana_audience}")
+            lines.append(f"TrendJack audience: {context.kuzana_audience}")
         if context.kuzana_content_format:
-            lines.append(f"Recommended Kuzana format: {context.kuzana_content_format}")
+            lines.append(f"Recommended TrendJack format: {context.kuzana_content_format}")
         if context.kuzana_practical_takeaway:
             lines.append(f"Practical takeaway: {context.kuzana_practical_takeaway}")
         if context.trend_score is not None:

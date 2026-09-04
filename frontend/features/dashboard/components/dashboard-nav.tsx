@@ -1,10 +1,11 @@
 "use client";
 
-import { ActivityIcon, FolderOpenIcon, LayoutDashboardIcon, TrendingUpIcon } from "lucide-react";
+import { FolderOpenIcon, LayoutDashboardIcon, TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { TrendJackBrand } from "@/components/brand/trendjack-logo";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { cn } from "@/lib/utils";
 
@@ -27,10 +28,7 @@ export function DashboardNav() {
         className="hidden items-center gap-2 text-base font-semibold tracking-tight md:mb-10 md:flex"
         aria-label="Dashboard home"
       >
-        <span className="flex size-7 items-center justify-center rounded-md bg-foreground text-primary-foreground">
-          <ActivityIcon className="size-3.5" />
-        </span>
-        Kuzana
+        <TrendJackBrand />
       </Link>
 
       <div className="flex flex-1 items-center justify-around gap-1 md:flex-col md:items-stretch md:justify-start md:gap-1.5">

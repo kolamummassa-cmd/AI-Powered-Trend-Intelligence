@@ -65,9 +65,9 @@ python manage.py poll_now         # fetches from every active platform immediate
 `REDDIT_CLIENT_SECRET` (a "script" app at reddit.com/prefs/apps) to be set in `.env`;
 Google Trends and RSS work with no credentials.
 
-### Kuzana YouTube and X feeds
+### TrendJack Hunter YouTube and X feeds
 
-`seed_platforms` also creates four disabled, Kuzana-focused social feeds: two
+`seed_platforms` also creates four disabled, TrendJack Hunter-focused social feeds: two
 YouTube Shorts searches and two X recent-search queries for Kenyan founders,
 SMEs, African startups, and funding. Add these values to `backend/.env`:
 

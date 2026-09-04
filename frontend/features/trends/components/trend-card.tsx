@@ -63,7 +63,7 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
           )}
           <div className="flex flex-wrap items-center gap-2">
             {trend.category && <Badge variant="secondary">{trend.category.name}</Badge>}
-            {trend.kuzana_theme && <Badge variant="accent">Kuzana · {trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
+            {trend.kuzana_theme && <Badge variant="accent">TrendJack · {trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
             {trend.platforms.map((platform) => (
               <Badge key={platform} variant="outline">
                 {platform}
@@ -99,7 +99,7 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
           )}
           {trend.kuzana_relevance_score !== null && (
             <p className="text-xs text-muted-foreground">
-              Kuzana relevance <span className="font-medium text-foreground">{trend.kuzana_relevance_score}/100</span>
+              TrendJack fit <span className="font-medium text-foreground">{trend.kuzana_relevance_score}/100</span>
               {trend.kuzana_geo_relevance && <> · {trend.kuzana_geo_relevance.replaceAll("_", " ")}</>}
             </p>
           )}

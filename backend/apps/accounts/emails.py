@@ -12,10 +12,10 @@ def _frontend_url(path: str) -> str:
 
 def send_verification_email(email: str, code: str) -> None:
     send_mail(
-        subject="Verify your email — AI-Powered Trend Intelligence",
+        subject="Verify your email — TrendJack Hunter",
         message=(
-            f"Hi,\n\nYour Kuzana verification code is: {code}\n\n"
-            "Enter this six-digit code in Kuzana within 15 minutes. "
+            f"Hi,\n\nYour TrendJack Hunter verification code is: {code}\n\n"
+            "Enter this six-digit code in TrendJack Hunter within 15 minutes. "
             "If you didn't create this account, you can ignore this email."
         ),
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
@@ -30,7 +30,7 @@ def send_password_reset_email(user) -> None:
     link = _frontend_url(f"/reset-password?uid={uid}&token={token}")
 
     send_mail(
-        subject="Reset your password — AI-Powered Trend Intelligence",
+        subject="Reset your password — TrendJack Hunter",
         message=(
             f"Hi,\n\nReset your password here:\n{link}\n\n"
             "If you didn't request this, you can safely ignore this email — "

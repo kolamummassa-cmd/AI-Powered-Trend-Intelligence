@@ -164,13 +164,13 @@ export function TrendDetail({ slug }: { slug: string }) {
       {trend.kuzana_relevance_score !== null && (
         <Card className="border-accent/30">
           <CardHeader>
-            <CardTitle className="text-base">Why this trend is useful for Kuzana</CardTitle>
+            <CardTitle className="text-base">Why this trend is useful for TrendJack Hunter</CardTitle>
             <p className="text-sm text-muted-foreground">
-              A quick explanation of the value this trend could offer Kuzana&apos;s audience.
+              A quick explanation of the value this trend could offer TrendJack Hunter&apos;s audience.
             </p>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <Badge variant="accent">Kuzana fit: {trend.kuzana_relevance_score}/100</Badge>
+            <Badge variant="accent">TrendJack fit: {trend.kuzana_relevance_score}/100</Badge>
             <p className="text-xs text-muted-foreground">
               This score estimates how useful the trend is for Kenyan founders, entrepreneurs, and creators.
             </p>

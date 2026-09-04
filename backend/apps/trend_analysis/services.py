@@ -15,7 +15,7 @@ OPPORTUNITY_HEADLINE_MIN_CONFIDENCE_SCORE = 60
 
 def _should_surface_opportunity_copy(result) -> bool:
     """Only turn a source headline into editorial copy when the model has
-    both a strong Kuzana connection and enough evidence confidence.
+    both a strong TrendJack Hunter connection and enough evidence confidence.
     """
     return (
         result.kuzana_relevance_score >= OPPORTUNITY_HEADLINE_MIN_KUZANA_SCORE

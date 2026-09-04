@@ -26,7 +26,7 @@ class Platform(BaseModel):
     kuzana_priority_weight = models.PositiveSmallIntegerField(
         default=50,
         help_text=(
-            "Kuzana editorial priority from 0-100. Higher values make a source's "
+            "TrendJack Hunter editorial priority from 0-100. Higher values make a source's "
             "evidence more influential when deciding relevance for Kenyan founders."
         ),
     )

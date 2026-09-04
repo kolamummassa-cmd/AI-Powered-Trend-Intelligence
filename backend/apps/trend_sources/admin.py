@@ -16,10 +16,10 @@ def disable_platforms(modeladmin, request, queryset):
     modeladmin.message_user(request, f"Disabled {updated} platform(s).")
 
 
-@admin.action(description="Mark selected sources as Kuzana core (priority 90)")
+@admin.action(description="Mark selected sources as TrendJack priority (weight 90)")
 def mark_kuzana_core(modeladmin, request, queryset):
     updated = queryset.update(kuzana_priority_weight=90)
-    modeladmin.message_user(request, f"Marked {updated} source(s) as Kuzana core.")
+    modeladmin.message_user(request, f"Marked {updated} source(s) as TrendJack priority sources.")
 
 
 @admin.action(description="Poll now")

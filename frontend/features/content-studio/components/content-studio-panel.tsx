@@ -179,7 +179,7 @@ export function ContentStudioPanel({
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">How it works</p>
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <WorkflowStep number="1" title="Collect the signal" description="The source feed is recorded and linked as evidence." />
-                <WorkflowStep number="2" title="Assess the opportunity" description="Kuzana scores relevance, timing, and confidence." />
+                <WorkflowStep number="2" title="Assess the opportunity" description="TrendJack Hunter scores relevance, timing, and confidence." />
                 <WorkflowStep number="3" title="Draft the brief" description="Generate a practical angle from your chosen perspective." />
               </div>
             </div>
