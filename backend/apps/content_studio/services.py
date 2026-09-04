@@ -98,17 +98,17 @@ def generate_content(
     options before saving one.
 
     Angle selection: the brief's perspective-driven `content_angle`
-    (Content Perspective) takes priority when present, since the
-    product spec calls it the strongest influence on every generated
-    piece's tone. The original per-content-type angle mapping is kept
-    as the fallback for briefs generated before this existed, or if a
-    brief's content_angle is somehow blank.
+    (Content Perspective) sets the audience lens for every generated
+    piece. It is combined with the per-content-type angle so a hook,
+    script, post, thumbnail, and reusable template do not all start
+    from the same generic instruction.
     """
-    if brief.content_angle:
-        angle = brief.content_angle
+    angle_field = ANGLE_FIELD_FOR_CONTENT_TYPE.get(content_type, "business_angle")
+    format_angle = getattr(brief, angle_field, "") or brief.business_angle
+    if brief.content_angle and format_angle:
+        angle = f"Audience focus: {brief.content_angle}\n\nFormat focus: {format_angle}"
     else:
-        angle_field = ANGLE_FIELD_FOR_CONTENT_TYPE.get(content_type, "business_angle")
-        angle = getattr(brief, angle_field, "") or brief.business_angle
+        angle = brief.content_angle or format_angle
 
     provider = get_ai_provider(provider_name)
     result = provider.generate_content_piece(

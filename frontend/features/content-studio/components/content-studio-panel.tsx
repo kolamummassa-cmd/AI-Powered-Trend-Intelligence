@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
 import {
   CONTENT_TYPES,
+  CONTENT_TYPE_DESCRIPTIONS,
   CONTENT_TYPE_LABELS,
   type ContentType,
   type GeneratedContent,
@@ -199,10 +200,10 @@ export function ContentStudioPanel({
             )}
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <AngleBlurb label="Business angle" text={brief.business_angle} />
-              <AngleBlurb label="Founder angle" text={brief.founder_angle} />
-              <AngleBlurb label="Educational angle" text={brief.educational_angle} />
-              <AngleBlurb label="Marketing angle" text={brief.marketing_angle} />
+              <AngleBlurb label="For business owners" help="How this could affect a business." text={brief.business_angle} />
+              <AngleBlurb label="For startup founders" help="What a founder can learn or do." text={brief.founder_angle} />
+              <AngleBlurb label="Explain it simply" help="A plain way to introduce the idea to beginners." text={brief.educational_angle} />
+              <AngleBlurb label="For marketing" help="How to communicate this idea to an audience." text={brief.marketing_angle} />
             </div>
 
             {brief.talking_points.length > 0 && (
@@ -230,7 +231,10 @@ export function ContentStudioPanel({
                     )}
                   <div className="rounded-md border border-border p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium">{CONTENT_TYPE_LABELS[contentType]}</p>
+                      <div>
+                        <p className="text-sm font-medium">{CONTENT_TYPE_LABELS[contentType]}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{CONTENT_TYPE_DESCRIPTIONS[contentType]}</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         {latest && (
                           <Button
@@ -281,11 +285,12 @@ export function ContentStudioPanel({
   );
 }
 
-function AngleBlurb({ label, text }: { label: string; text: string }) {
+function AngleBlurb({ label, help, text }: { label: string; help: string; text: string }) {
   if (!text) return null;
   return (
     <div className="space-y-1">
       <p className="text-sm font-medium text-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{help}</p>
       <p className="text-sm text-muted-foreground">{text}</p>
     </div>
   );

@@ -35,6 +35,30 @@ const TREND_STAGE_VARIANT = {
   declining: "secondary",
 } as const;
 
+const KUZANA_METADATA_LABELS = {
+  kuzana_theme: "Topic",
+  kuzana_geo_relevance: "Connection to Kenya",
+  kuzana_content_format: "Suggested way to cover it",
+} as const;
+
+const PLAIN_LANGUAGE_METADATA: Record<string, string> = {
+  global_lesson: "A useful lesson from outside Kenya",
+  east_africa: "Directly relevant in East Africa",
+  africa: "Relevant across Africa",
+  kenya: "Directly relevant in Kenya",
+  not_relevant: "No clear local connection",
+  practical_playbook: "Step-by-step guide",
+  hot_take: "A clear opinion",
+  case_study: "A real-world example",
+  myth_bust: "Correct a common misunderstanding",
+  founder_story: "A founder lesson",
+  explainer: "A simple explanation",
+};
+
+function readableMetadata(value: string) {
+  return PLAIN_LANGUAGE_METADATA[value] || value.replaceAll("_", " ");
+}
+
 export function TrendDetail({ slug }: { slug: string }) {
   const { data: trend, isLoading, isError, refetch } = useTrend(slug);
   const reanalyze = useReanalyzeTrend(slug);
@@ -139,28 +163,48 @@ export function TrendDetail({ slug }: { slug: string }) {
 
       {trend.kuzana_relevance_score !== null && (
         <Card className="border-accent/30">
-          <CardHeader><CardTitle className="text-base">Why Kuzana should cover this</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="accent">Kuzana relevance {trend.kuzana_relevance_score}/100</Badge>
-              {trend.kuzana_theme && <Badge variant="outline">{trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
-              {trend.kuzana_geo_relevance && <Badge variant="outline">{trend.kuzana_geo_relevance.replaceAll("_", " ")}</Badge>}
-              {trend.kuzana_content_format && <Badge variant="outline">{trend.kuzana_content_format}</Badge>}
-            </div>
+          <CardHeader>
+            <CardTitle className="text-base">Why this trend is useful for Kuzana</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              A quick explanation of the value this trend could offer Kuzana&apos;s audience.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Badge variant="accent">Kuzana fit: {trend.kuzana_relevance_score}/100</Badge>
+            <p className="text-xs text-muted-foreground">
+              This score estimates how useful the trend is for Kenyan founders, entrepreneurs, and creators.
+            </p>
+            <dl className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-3">
+              {(["kuzana_theme", "kuzana_geo_relevance", "kuzana_content_format"] as const).map((key) => {
+                const value = trend[key];
+                if (!value) return null;
+                return (
+                  <div key={key}>
+                    <dt className="text-xs font-medium text-muted-foreground">{KUZANA_METADATA_LABELS[key]}</dt>
+                    <dd className="mt-1 font-medium capitalize">{readableMetadata(value)}</dd>
+                  </div>
+                );
+              })}
+            </dl>
             {trend.kuzana_relevance_reason && <p>{trend.kuzana_relevance_reason}</p>}
-            {trend.kuzana_audience && <p className="text-muted-foreground">Best for: {trend.kuzana_audience}</p>}
-            {trend.kuzana_practical_takeaway && <p className="font-medium">Practical takeaway: {trend.kuzana_practical_takeaway}</p>}
+            {trend.kuzana_audience && <p className="text-muted-foreground">Most useful for: {trend.kuzana_audience}</p>}
+            {trend.kuzana_practical_takeaway && <p className="font-medium">What you can do: {trend.kuzana_practical_takeaway}</p>}
           </CardContent>
         </Card>
       )}
 
       {audienceHooks.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Audience cues</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Ideas for different readers</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              These questions help each audience see why the trend may matter. They are prompts, not scores or buttons.
+            </p>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
             {audienceHooks.map(({ audience, copy }) => (
               <div key={audience} className="space-y-1 rounded-md border border-border p-3">
-                <p className="text-sm font-medium">For {AUDIENCE_LABELS[audience]}</p>
+                <p className="text-sm font-medium">If you are {AUDIENCE_LABELS[audience].toLowerCase()}</p>
                 <p className="text-sm text-muted-foreground">{copy}</p>
               </div>
             ))}

@@ -200,7 +200,7 @@ class TestGenerateContent:
         assert call_context.content_type == "cta"
 
     @patch("apps.content_studio.services.get_ai_provider")
-    def test_content_angle_takes_priority_when_present(self, mock_get_provider, trend):
+    def test_content_angle_is_combined_with_the_format_specific_angle(self, mock_get_provider, trend):
         perspective_brief = ContentBrief.objects.create(
             trend=trend,
             business_angle="Business angle.",
@@ -215,7 +215,8 @@ class TestGenerateContent:
         generate_content(perspective_brief, "cta")
 
         call_context = mock_provider.generate_content_piece.call_args[0][0]
-        assert call_context.angle == "An investor-focused angle."
+        assert "Audience focus: An investor-focused angle." in call_context.angle
+        assert "Format focus: Marketing angle." in call_context.angle
         assert call_context.perspective == "investors"
 
     @patch("apps.content_studio.services.get_ai_provider")

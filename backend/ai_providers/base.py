@@ -355,6 +355,9 @@ persona's point of view — the tone and focus should clearly differ between a c
 founder, and an investor angle on the same trend. If no perspective is given, write a \
 well-rounded general angle.
 
+Use plain, everyday English. Avoid business jargon and unexplained abbreviations. If a term such \
+as "ARR", "churn", or "ROI" is essential, spell it out and briefly explain it the first time.
+
 Respond with raw JSON only."""
 
 

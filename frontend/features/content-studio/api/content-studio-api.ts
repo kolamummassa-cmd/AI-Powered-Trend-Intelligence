@@ -26,6 +26,19 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   remix_template: "Remix template",
 };
 
+// These are written for someone deciding what to create, not for a marketer.
+// They make it clear that each generated item has a different job.
+export const CONTENT_TYPE_DESCRIPTIONS: Record<ContentType, string> = {
+  hook: "Three opening lines designed to make people stop and listen.",
+  script_30: "A short video script for a video of about 30 seconds.",
+  post: "A ready-to-edit written post for LinkedIn, X, or another social platform.",
+  script_60: "A fuller video script for a video of about one minute.",
+  cta: "Short closing lines that tell the audience what to do next.",
+  hashtags: "Searchable topic labels that help the right people find the post.",
+  thumbnail_suggestion: "An idea for the cover image and headline people see before opening a video.",
+  remix_template: "A repeatable content format you or other creators can adapt to similar trends.",
+};
+
 export interface GeneratedContent {
   id: string;
   brief: string;
