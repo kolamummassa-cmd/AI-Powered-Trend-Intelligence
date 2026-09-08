@@ -34,11 +34,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    refreshAccessToken().then((access) => {
-      if (active) setHasToken(Boolean(access));
-    });
+    const restoreSession = () => {
+      refreshAccessToken().then((access) => {
+        if (active) setHasToken(Boolean(access));
+      });
+    };
+
+    restoreSession();
+
+    // A browser can restore a previously visited page from its back/forward
+    // cache without remounting this provider. Re-check the HttpOnly refresh
+    // cookie in that case so a page restored after logout or expiry cannot
+    // keep presenting itself as an authenticated workspace.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) restoreSession();
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
     return () => {
       active = false;
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, []);
 
@@ -66,7 +81,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHasToken(false);
     queryClient.setQueryData(["me"], undefined);
     queryClient.removeQueries({ queryKey: ["me"] });
-    router.push("/login");
+    // Authentication transitions should not leave the private route as the
+    // next Back-button destination. Protected layouts remain the final
+    // server/API guard if the browser restores an older history entry.
+    router.replace("/login");
   }
 
   const stillResolving = hasToken === null || (hasToken && isMeLoading);

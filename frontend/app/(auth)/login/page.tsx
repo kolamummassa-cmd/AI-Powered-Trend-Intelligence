@@ -34,7 +34,9 @@ export default function LoginPage() {
       onSuccess: (data) => {
         setSession(data);
         toast.success("Welcome back.");
-        router.push(data.is_verified ? "/dashboard" : `/verify-email?email=${encodeURIComponent(data.email)}`);
+        router.replace(
+          data.is_verified ? "/dashboard" : `/verify-email?email=${encodeURIComponent(data.email)}`,
+        );
       },
       onError: (error) => {
         toast.error(firstError(error, "Invalid email or password."));
@@ -47,7 +49,7 @@ export default function LoginPage() {
       onSuccess: (data) => {
         setSession(data);
         toast.success("Welcome.");
-        router.push("/dashboard");
+        router.replace("/dashboard");
       },
       onError: (error) => toast.error(firstError(error, "Google sign-in failed.")),
     });

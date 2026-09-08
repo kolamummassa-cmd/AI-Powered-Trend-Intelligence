@@ -32,7 +32,7 @@ export default function RegisterPage() {
   function onSubmit(values: RegisterFormValues) {
     registerMutation.mutate(values, {
       onSuccess: (data) => {
-        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+        router.replace(`/verify-email?email=${encodeURIComponent(data.email)}`);
       },
       onError: (error) => toast.error(firstError(error, "Could not create your account.")),
     });
@@ -43,7 +43,7 @@ export default function RegisterPage() {
       onSuccess: (data) => {
         setSession(data);
         toast.success("Welcome.");
-        router.push("/dashboard");
+        router.replace("/dashboard");
       },
       onError: (error) => toast.error(firstError(error, "Google sign-in failed.")),
     });
