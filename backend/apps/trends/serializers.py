@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.trend_analysis.serializers import TrendAnalysisSerializer
 from apps.trends.models import Category, Trend, TrendSourceLink
+from apps.trends.signal_areas import detect_signal_areas
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -35,6 +36,7 @@ class TrendListSerializer(serializers.ModelSerializer):
     platforms = serializers.SerializerMethodField()
     source_count = serializers.SerializerMethodField()
     source_freshness = serializers.SerializerMethodField()
+    signal_areas = serializers.SerializerMethodField()
 
     class Meta:
         model = Trend
@@ -59,6 +61,7 @@ class TrendListSerializer(serializers.ModelSerializer):
             "platforms",
             "source_count",
             "source_freshness",
+            "signal_areas",
             # Surfaced on the card itself (not just the detail page) so the
             # feed reads like a ranked intelligence view, not a bare list.
             "best_audience",
@@ -83,6 +86,9 @@ class TrendListSerializer(serializers.ModelSerializer):
         if age_hours < 24 * 7:
             return "recent"
         return "aging"
+
+    def get_signal_areas(self, obj) -> list[str]:
+        return detect_signal_areas(obj.title, obj.summary)
 
 
 class TrendDetailSerializer(TrendListSerializer):

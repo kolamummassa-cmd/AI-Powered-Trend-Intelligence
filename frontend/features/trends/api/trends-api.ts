@@ -40,6 +40,8 @@ export interface TrendListItem {
   platforms: string[];
   source_count: number;
   source_freshness: "fresh" | "recent" | "aging";
+  // Quick source labels available before a trend has been analyzed.
+  signal_areas: string[];
   // Surfaced on the card itself, not just the detail page — best_audience
   // is an intelligence signal only (see TrendDetail's note below), never
   // a restriction on who can generate content about this trend.

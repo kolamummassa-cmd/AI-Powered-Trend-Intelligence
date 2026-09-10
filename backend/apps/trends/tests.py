@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.core.models import AIJob
 from apps.trend_sources.models import Platform, RawTrendSignal
 from apps.trends.models import Category, Trend, TrendSourceLink, TrendStatus
+from apps.trends.signal_areas import detect_signal_areas
 from apps.trends.services import ingest_raw_signal, normalize_title
 
 
@@ -39,6 +40,19 @@ class TestNormalizeTitle:
 
     def test_collapses_whitespace(self):
         assert normalize_title("a   b\tc") == "a b c"
+
+
+class TestSignalAreas:
+    def test_detects_the_most_relevant_topic_labels(self):
+        assert detect_signal_areas("Kenyan fintech startup raises funding") == [
+            "Funding & investment",
+            "Fintech & money",
+        ]
+
+    def test_falls_back_to_general_business(self):
+        assert detect_signal_areas("Local company appoints a new chief executive") == [
+            "Business & markets"
+        ]
 
 
 @pytest.mark.django_db
@@ -132,6 +146,10 @@ class TestTrendAPI:
         assert response.status_code == 200
         assert response.data["count"] == 1
         assert response.data["results"][0]["platforms"] == ["test-platform"]
+        assert response.data["results"][0]["signal_areas"] == [
+            "Fintech & money",
+            "African & Kenyan markets",
+        ]
 
     def test_filter_by_category_slug(self, platform):
         category_a = Category.objects.create(name="Fintech")

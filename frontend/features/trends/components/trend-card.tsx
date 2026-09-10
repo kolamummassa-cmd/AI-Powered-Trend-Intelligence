@@ -62,6 +62,9 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            {trend.signal_areas.map((area) => (
+              <Badge key={area} variant="default">{area}</Badge>
+            ))}
             {trend.category && <Badge variant="secondary">{trend.category.name}</Badge>}
             {trend.kuzana_theme && <Badge variant="accent">TrendJack · {trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
             {trend.platforms.map((platform) => (
