@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from apps.trend_sources.adapters import (
     GoogleTrendsAdapter,
@@ -50,12 +51,67 @@ class TestRSSAdapter:
                 }
             ],
         )
-        adapter = RSSAdapter({"feed_url": "https://example.com/feed"})
+        adapter = RSSAdapter(
+            {"feed_url": "https://example.com/feed", "extract_article_excerpt": False}
+        )
         signals = adapter.fetch_signals()
 
         assert len(signals) == 1
         assert signals[0].external_id == "https://example.com/post-1"
         assert signals[0].title == "Kenya's Fintech Boom"
+
+    @patch("apps.trend_sources.adapters.requests.get")
+    @patch("apps.trend_sources.adapters.feedparser.parse")
+    def test_uses_the_article_opening_description_when_enabled(self, mock_parse, mock_get):
+        mock_parse.return_value = MagicMock(
+            bozo=False,
+            entries=[
+                {
+                    "id": "https://example.com/post-1",
+                    "title": "Cornelis raises funding",
+                    "link": "https://example.com/post-1",
+                    "summary": "A later RSS excerpt.",
+                    "tags": [],
+                }
+            ],
+        )
+        mock_get.return_value = MagicMock(
+            text=(
+                '<html><head><meta property="og:description" '
+                'content="Cornelis creates networking technology for AI chips and raised $205 million." />'
+                '</head></html>'
+            ),
+            raise_for_status=lambda: None,
+        )
+
+        signals = RSSAdapter(
+            {"feed_url": "https://example.com/feed", "extract_article_excerpt": True}
+        ).fetch_signals()
+
+        assert signals[0].summary == "Cornelis creates networking technology for AI chips and raised $205 million."
+
+    @patch("apps.trend_sources.adapters.requests.get", side_effect=requests.Timeout)
+    @patch("apps.trend_sources.adapters.feedparser.parse")
+    def test_keeps_a_source_label_when_no_excerpt_is_available(self, mock_parse, mock_get):
+        mock_parse.return_value = MagicMock(
+            bozo=False,
+            entries=[
+                {
+                    "id": "https://example.com/post-2",
+                    "title": "A source with no description",
+                    "link": "https://example.com/post-2",
+                    "summary": "",
+                    "tags": [],
+                }
+            ],
+        )
+
+        signals = RSSAdapter({"feed_url": "https://example.com/feed"}).fetch_signals()
+
+        assert signals[0].summary == (
+            "Source report: A source with no description. "
+            "Open the recorded source to read the full article."
+        )
 
     def test_requires_feed_url_in_config(self):
         adapter = RSSAdapter({})

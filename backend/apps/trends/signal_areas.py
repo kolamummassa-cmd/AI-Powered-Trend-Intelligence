@@ -8,6 +8,8 @@ assessment.
 
 from __future__ import annotations
 
+import re
+
 
 SIGNAL_AREAS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
@@ -56,6 +58,13 @@ SIGNAL_AREAS: tuple[tuple[str, tuple[str, ...]], ...] = (
 def detect_signal_areas(title: str, summary: str = "") -> list[str]:
     """Return at most two plain-language labels from a source headline."""
 
-    text = f" {title} {summary} ".lower()
-    matches = [label for label, keywords in SIGNAL_AREAS if any(word in text for word in keywords)]
+    text = f"{title} {summary}".lower()
+
+    # Match complete words/phrases. A plain substring check labelled
+    # "fintech" as technology because it contains "tech", even before any
+    # AI analysis had confirmed that interpretation.
+    def contains_keyword(keyword: str) -> bool:
+        return bool(re.search(rf"(?<!\w){re.escape(keyword.strip())}(?!\w)", text))
+
+    matches = [label for label, keywords in SIGNAL_AREAS if any(contains_keyword(word) for word in keywords)]
     return matches[:2] or ["Business & markets"]

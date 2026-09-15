@@ -8,7 +8,7 @@ from apps.core.ai_jobs import enqueue_ai_job
 from apps.core.models import AIJob
 from apps.core.permissions import IsVerifiedUser, enforce_ai_generation_quota
 from apps.core.serializers import AIJobSerializer
-from apps.content_studio.models import ContentBrief, GeneratedContent
+from apps.content_studio.models import ContentBrief, ContentType, GeneratedContent
 from apps.content_studio.serializers import (
     ContentBriefSerializer,
     GenerateBriefRequestSerializer,
@@ -88,8 +88,12 @@ class GeneratedContentListCreateView(generics.ListCreateAPIView):
     serializer_class = GeneratedContentSerializer
 
     def get_queryset(self):
-        queryset = GeneratedContent.objects.filter(created_by=self.request.user).select_related(
-            "brief__trend"
+        queryset = (
+            GeneratedContent.objects.filter(
+                created_by=self.request.user,
+                content_type__in=ContentType.values,
+            )
+            .select_related("brief__trend")
         )
         brief_id = self.request.query_params.get("brief")
         if brief_id:
@@ -120,13 +124,16 @@ class GeneratedContentListCreateView(generics.ListCreateAPIView):
 
 
 class GeneratedContentDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Retrieve one piece, or PATCH {"is_saved": true/false} — the
-    only field the API lets a client change directly (body edits go
-    through the Phase 6 AI Chat refinement flow instead).
-    """
+    """Retrieve, edit, save, or delete one of the current user's content pieces."""
 
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = GeneratedContentSerializer
 
     def get_queryset(self):
-        return GeneratedContent.objects.filter(created_by=self.request.user).select_related("brief__trend")
+        return (
+            GeneratedContent.objects.filter(
+                created_by=self.request.user,
+                content_type__in=ContentType.values,
+            )
+            .select_related("brief__trend")
+        )

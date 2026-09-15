@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkIcon, CheckIcon, CopyIcon, DownloadIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { BookmarkIcon, CheckIcon, CopyIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -53,10 +53,9 @@ export function ContentPieceDetail({ id }: { id: string }) {
   });
   const { data: versions } = useContentVersions(content?.brief ?? "", content?.content_type ?? "hook");
 
-  async function copyFor(format: string) {
+  async function copyContent() {
     if (!content) return;
-    const prefix = format === "Plain text" ? "" : `${format}\n\n`;
-    await navigator.clipboard.writeText(`${prefix}${content.body}`);
+    await navigator.clipboard.writeText(content.body);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   }
@@ -98,7 +97,7 @@ export function ContentPieceDetail({ id }: { id: string }) {
             {content.brief_context && <p className="mt-1">Brief: {content.brief_context}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => copyFor("Plain text")}><CopyIcon /> {copied ? "Copied" : "Copy"}</Button>
+            <Button size="sm" variant="outline" onClick={copyContent}><CopyIcon /> {copied ? "Copied" : "Copy"}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -107,10 +106,6 @@ export function ContentPieceDetail({ id }: { id: string }) {
                 setIsEditing((value) => !value);
               }}
             ><PencilIcon /> Edit</Button>
-            <Button size="sm" variant="outline" onClick={() => copyFor("LinkedIn post")}><DownloadIcon /> LinkedIn</Button>
-            <Button size="sm" variant="outline" onClick={() => copyFor("X post")}><DownloadIcon /> X</Button>
-            <Button size="sm" variant="outline" onClick={() => copyFor("Reels / Shorts script")}><DownloadIcon /> Reels & Shorts</Button>
-            <Button size="sm" variant="outline" onClick={() => copyFor("Carousel outline")}><DownloadIcon /> Carousel</Button>
             <Button
               size="sm"
               variant="outline"
@@ -124,7 +119,11 @@ export function ContentPieceDetail({ id }: { id: string }) {
           </div>
           {isEditing ? (
             <div className="space-y-2"><textarea value={draft} onChange={(event) => setDraft(event.target.value)} className="min-h-56 w-full rounded-md border border-input bg-background p-3 text-sm" /><div className="flex gap-2"><Button size="sm" onClick={() => saveEdit.mutate(draft)} disabled={saveEdit.isPending}><CheckIcon /> Save edits</Button><Button size="sm" variant="outline" onClick={() => { setDraft(content.body); setIsEditing(false); }}>Cancel</Button></div></div>
-          ) : <p className="whitespace-pre-wrap text-sm">{content.body}</p>}
+          ) : (
+            <div className="whitespace-pre-wrap rounded-md border border-border bg-background p-4 text-sm leading-6">
+              {content.body}
+            </div>
+          )}
         </CardContent>
       </Card>
 

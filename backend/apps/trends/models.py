@@ -99,6 +99,10 @@ class Trend(BaseModel):
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, related_name="trends"
     )
+    # The first source's short description is retained separately from the
+    # AI overview. Before analysis the UI shows this excerpt; once analyzed,
+    # `summary` is replaced with the product's plain-language conclusion.
+    source_excerpt = models.TextField(blank=True, default="")
     summary = models.TextField(blank=True)
     why_spreading = models.TextField(blank=True)
     estimated_lifespan = models.CharField(max_length=100, blank=True)

@@ -88,6 +88,7 @@ def ingest_raw_signal(raw_signal: RawTrendSignal) -> tuple[Trend, bool]:
                         title=raw_signal.title,
                         dedup_key=key,
                         active_dedup_key=key,
+                        source_excerpt=raw_signal.summary,
                         summary=raw_signal.summary,
                         first_detected_at=published,
                         last_seen_at=published,

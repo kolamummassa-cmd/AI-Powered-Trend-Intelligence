@@ -28,7 +28,11 @@ export interface TrendListItem {
   creator_hook: string;
   slug: string;
   category: Category | null;
+  // The original paragraph supplied by the first source. It is shown before
+  // analysis; `summary` becomes the AI overview once the trend is analyzed.
+  source_excerpt: string;
   summary: string;
+  what_is_happening: string;
   status: "active" | "expiring" | "expired";
   estimated_lifespan: string;
   trend_score: number | null;
@@ -47,14 +51,12 @@ export interface TrendListItem {
   // a restriction on who can generate content about this trend.
   best_audience: AudienceType | "";
   trend_stage: TrendStage | "";
-  kuzana_relevance_score: number | null;
-  kuzana_theme: string;
-  kuzana_geo_relevance: string;
 }
 
 export interface TrendSourceLink {
   platform: string;
   platform_slug: string;
+  source_title: string;
   source_url: string;
   published_at: string | null;
   credibility_weight: number;
@@ -97,13 +99,6 @@ export interface TrendAnalysis {
   trend_stage: TrendStage | "";
   suggested_content_angle: string;
   action_summary: string;
-  kuzana_relevance_score: number;
-  kuzana_relevance_reason: string;
-  kuzana_theme: string;
-  kuzana_geo_relevance: string;
-  kuzana_audience: string;
-  kuzana_content_format: string;
-  kuzana_practical_takeaway: string;
   opportunity_headline: string;
   founder_hook: string;
   investor_hook: string;
@@ -127,10 +122,6 @@ export interface TrendDetail extends TrendListItem {
   what_is_happening: string;
   suggested_content_angle: string;
   action_summary: string;
-  kuzana_relevance_reason: string;
-  kuzana_audience: string;
-  kuzana_content_format: string;
-  kuzana_practical_takeaway: string;
   created_at: string;
 }
 
@@ -149,7 +140,6 @@ export interface TrendListParams {
   high_priority?: boolean;
   audience?: AudienceType;
   stage?: TrendStage;
-  kuzana_only?: boolean;
   ordering?: string;
   page?: number;
 }

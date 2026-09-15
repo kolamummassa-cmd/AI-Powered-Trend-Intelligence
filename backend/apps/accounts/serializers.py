@@ -1,11 +1,10 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import check_password
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
-from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.accounts.models import UserProfile, UserRole
@@ -47,6 +46,11 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        # Email verification is a registration-only step. New registrations
+        # are held outside the User table until their code is accepted, while
+        # the data migration marks pre-code-flow accounts as verified.
+        if not self.user.is_verified:
+            raise AuthenticationFailed("This account is not ready. Please complete registration first.")
         data["email"] = self.user.email
         data["is_verified"] = self.user.is_verified
         return data
@@ -66,23 +70,7 @@ class VerifyEmailSerializer(serializers.Serializer):
         if pending_signup:
             attrs["pending_signup"] = pending_signup
             return attrs
-
-        # This legacy branch lets accounts created before the code-first
-        # flow complete verification. New registrations never create User rows
-        # until this endpoint accepts their code.
-        user = User.objects.filter(email=email, is_verified=False).first()
-        expires_at = getattr(user, "email_verification_code_expires_at", None)
-        if (
-            not user
-            or not user.email_verification_code
-            or not expires_at
-            or expires_at <= timezone.now()
-            or not check_password(attrs["code"], user.email_verification_code)
-        ):
-            raise serializers.ValidationError("This verification code is invalid or has expired.")
-
-        attrs["user"] = user
-        return attrs
+        raise serializers.ValidationError("This verification code is invalid or has expired.")
 
 
 class ResendVerificationSerializer(serializers.Serializer):

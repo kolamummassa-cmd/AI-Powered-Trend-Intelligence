@@ -47,7 +47,7 @@ const AUDIENCE_LENSES = [
   {
     icon: SparklesIcon,
     label: "Content Creators",
-    description: "Hooks, 30s and 60s scripts, captions and remix templates you can shoot today.",
+    description: "Hooks, short video scripts, and ready-to-edit posts you can use today.",
   },
   {
     icon: RocketIcon,

@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.trend_sources.base import get_adapter
 from apps.trend_sources.models import Platform, RawTrendSignal
+from apps.trends.models import TrendSourceLink
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,19 @@ def poll_platform(self, platform_id: str):
             from apps.trends.tasks import ingest_signal
 
             ingest_signal.delay(str(raw_signal.id))
+        elif raw_signal.summary != signal.summary:
+            # Feed descriptions can be generic while a later poll retrieves a
+            # publisher's proper opening paragraph. Refresh that evidence
+            # without creating a duplicate trend or re-running AI analysis.
+            previous_summary = raw_signal.summary
+            raw_signal.summary = signal.summary
+            raw_signal.save(update_fields=["summary"])
+
+            link = TrendSourceLink.objects.select_related("trend").filter(raw_signal=raw_signal).first()
+            if link and not link.trend.analyzed_at and link.trend.source_excerpt in {"", previous_summary}:
+                link.trend.source_excerpt = signal.summary
+                link.trend.summary = signal.summary
+                link.trend.save(update_fields=["source_excerpt", "summary"])
 
     platform.last_polled_at = timezone.now()
     platform.save(update_fields=["last_polled_at"])

@@ -54,11 +54,6 @@ class ContentType(models.TextChoices):
     HOOK = "hook", "Hook"
     SCRIPT_30 = "script_30", "30s script"
     POST = "post", "Post"
-    SCRIPT_60 = "script_60", "60s script"
-    CTA = "cta", "Call to action"
-    HASHTAGS = "hashtags", "Hashtags"
-    THUMBNAIL_SUGGESTION = "thumbnail_suggestion", "Thumbnail suggestion"
-    REMIX_TEMPLATE = "remix_template", "Remix template"
 
 
 class GeneratedContent(BaseModel):

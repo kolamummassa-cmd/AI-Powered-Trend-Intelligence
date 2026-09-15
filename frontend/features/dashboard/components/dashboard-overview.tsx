@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowRightIcon } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import { TrendCard } from "@/features/trends/components/trend-card";
 
 export function DashboardOverview() {
   const { data: stats, isLoading, isError, refetch } = useDashboardStats();
-  const { data: highPriority } = useTrends({ high_priority: true, kuzana_only: true });
+  const { data: highPriority } = useTrends({ high_priority: true });
 
   if (isLoading) {
     return (
@@ -37,8 +36,6 @@ export function DashboardOverview() {
     );
   }
 
-  const recommended = highPriority?.results[0];
-
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -55,36 +52,6 @@ export function DashboardOverview() {
           accent="warning"
         />
       </div>
-
-      <section className="rounded-xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
-        <p className="text-sm font-medium text-primary">Recommended TrendJack opportunity</p>
-        {!highPriority && <Skeleton className="mt-3 h-28 w-full" />}
-        {recommended ? (
-          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="max-w-2xl space-y-2">
-              <h2 className="text-xl font-semibold tracking-tight">{recommended.title}</h2>
-              <p className="text-sm text-muted-foreground">
-                {recommended.summary || "A newly scored opportunity worth reviewing today."}
-              </p>
-              <div className="flex flex-wrap gap-2 text-sm">
-                <span>Opportunity {recommended.opportunity_score ?? "—"}/100</span>
-                <span>· {recommended.source_count} sources</span>
-                <span>· {recommended.source_freshness}</span>
-                {recommended.best_audience && <span>· Best for {recommended.best_audience.replaceAll("_", " ")}</span>}
-              </div>
-            </div>
-            <Button asChild>
-              <Link href={`/trends/${recommended.slug}`}>
-                Review and act <ArrowRightIcon />
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            We&apos;re still evaluating today&apos;s signals. Check the trend feed for the latest coverage.
-          </p>
-        )}
-      </section>
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-3">

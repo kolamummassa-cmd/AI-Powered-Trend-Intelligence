@@ -28,7 +28,6 @@ export function TrendList() {
   const [audience, setAudience] = useState<(typeof AUDIENCE_OPTIONS)[number]>((searchParams.get("audience") as (typeof AUDIENCE_OPTIONS)[number]) || "all");
   const [stage, setStage] = useState<(typeof STAGE_OPTIONS)[number]>((searchParams.get("stage") as (typeof STAGE_OPTIONS)[number]) || "all");
   const [highPriorityOnly, setHighPriorityOnly] = useState(searchParams.get("high_priority") === "true");
-  const [kuzanaOnly, setKuzanaOnly] = useState(searchParams.get("kuzana_only") === "true");
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
   const [debouncedSearch, setDebouncedSearch] = useState(search);
 
@@ -44,11 +43,10 @@ export function TrendList() {
     if (audience !== "all") params.set("audience", audience);
     if (stage !== "all") params.set("stage", stage);
     if (highPriorityOnly) params.set("high_priority", "true");
-    if (kuzanaOnly) params.set("kuzana_only", "true");
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [audience, debouncedSearch, highPriorityOnly, kuzanaOnly, page, pathname, router, stage, status]);
+  }, [audience, debouncedSearch, highPriorityOnly, page, pathname, router, stage, status]);
 
   const { data, isLoading, isFetching, isError, refetch } = useTrends({
     search: debouncedSearch || undefined,
@@ -56,7 +54,6 @@ export function TrendList() {
     audience: audience === "all" ? undefined : (audience as AudienceType),
     stage: stage === "all" ? undefined : (stage as TrendStage),
     high_priority: highPriorityOnly || undefined,
-    kuzana_only: kuzanaOnly || undefined,
     page,
   });
   const resetPage = () => setPage(1);
@@ -70,7 +67,6 @@ export function TrendList() {
         <select value={audience} onChange={(e) => { setAudience(e.target.value as typeof audience); resetPage(); }} className="h-10 w-full rounded-md border border-primary/60 bg-transparent px-3 text-sm sm:w-auto">{AUDIENCE_OPTIONS.map((option) => <option key={option} value={option} className="bg-card">{option === "all" ? "All audiences" : AUDIENCE_LABELS[option]}</option>)}</select>
         <select value={stage} onChange={(e) => { setStage(e.target.value as typeof stage); resetPage(); }} className="h-10 w-full rounded-md border border-primary/60 bg-transparent px-3 text-sm sm:w-auto">{STAGE_OPTIONS.map((option) => <option key={option} value={option} className="bg-card">{option === "all" ? "Any stage" : TREND_STAGE_LABELS[option]}</option>)}</select>
         <label className="flex h-10 w-full items-center gap-2 rounded-md border border-primary/60 px-3 text-sm sm:w-auto"><input type="checkbox" checked={highPriorityOnly} onChange={(e) => { setHighPriorityOnly(e.target.checked); resetPage(); }} />High priority</label>
-        <label className="flex h-10 w-full items-center gap-2 rounded-md border border-primary/60 px-3 text-sm sm:w-auto"><input type="checkbox" checked={kuzanaOnly} onChange={(e) => { setKuzanaOnly(e.target.checked); resetPage(); }} />TrendJack relevant</label>
       </div>
       {data && <p className="text-sm text-muted-foreground">{data.count} result{data.count === 1 ? "" : "s"} found{isFetching ? " · Updating…" : ""}</p>}
       {isLoading && <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}</div>}

@@ -15,6 +15,7 @@ class CategorySerializer(serializers.ModelSerializer):
 class TrendSourceLinkSerializer(serializers.ModelSerializer):
     platform = serializers.CharField(source="platform.name")
     platform_slug = serializers.CharField(source="platform.slug")
+    source_title = serializers.CharField(source="raw_signal.title")
     credibility_weight = serializers.IntegerField(source="platform.credibility_weight")
     published_at = serializers.DateTimeField(source="raw_signal.published_at")
 
@@ -23,6 +24,7 @@ class TrendSourceLinkSerializer(serializers.ModelSerializer):
         fields = (
             "platform",
             "platform_slug",
+            "source_title",
             "source_url",
             "published_at",
             "credibility_weight",
@@ -49,7 +51,9 @@ class TrendListSerializer(serializers.ModelSerializer):
             "creator_hook",
             "slug",
             "category",
+            "source_excerpt",
             "summary",
+            "what_is_happening",
             "status",
             "estimated_lifespan",
             "trend_score",
@@ -66,9 +70,6 @@ class TrendListSerializer(serializers.ModelSerializer):
             # feed reads like a ranked intelligence view, not a bare list.
             "best_audience",
             "trend_stage",
-            "kuzana_relevance_score",
-            "kuzana_theme",
-            "kuzana_geo_relevance",
         )
 
     def get_platforms(self, obj) -> list[str]:
@@ -113,10 +114,6 @@ class TrendDetailSerializer(TrendListSerializer):
             "what_is_happening",
             "suggested_content_angle",
             "action_summary",
-            "kuzana_relevance_reason",
-            "kuzana_audience",
-            "kuzana_content_format",
-            "kuzana_practical_takeaway",
             "created_at",
         )
 

@@ -32,11 +32,11 @@ export default function LoginPage() {
   function onSubmit(values: LoginFormValues) {
     loginMutation.mutate(values, {
       onSuccess: (data) => {
+        // The dashboard displays this after it has finished authenticating;
+        // do not claim a successful return before the user can see it.
+        window.sessionStorage.setItem("trend-intelligence-auth-notice", "welcome-back");
         setSession(data);
-        toast.success("Welcome back.");
-        router.replace(
-          data.is_verified ? "/dashboard" : `/verify-email?email=${encodeURIComponent(data.email)}`,
-        );
+        router.replace("/dashboard");
       },
       onError: (error) => {
         toast.error(firstError(error, "Invalid email or password."));
@@ -48,7 +48,6 @@ export default function LoginPage() {
     googleMutation.mutate(idToken, {
       onSuccess: (data) => {
         setSession(data);
-        toast.success("Welcome.");
         router.replace("/dashboard");
       },
       onError: (error) => toast.error(firstError(error, "Google sign-in failed.")),

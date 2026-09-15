@@ -35,6 +35,9 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
   const audienceLabel = trend.best_audience
     ? AUDIENCE_LABELS[trend.best_audience]
     : "";
+  const preview = trend.analyzed_at
+    ? trend.what_is_happening || trend.summary
+    : trend.source_excerpt || trend.summary;
 
   return (
     <Link href={`/trends/${trend.slug}`} className="block">
@@ -46,9 +49,9 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {trend.summary && (
+          {preview && (
             <p className="line-clamp-2 break-words text-sm text-black/70 dark:text-white/70">
-              {trend.summary}
+              {preview}
             </p>
           )}
           {audienceCue && (
@@ -66,7 +69,6 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
               <Badge key={area} variant="default">{area}</Badge>
             ))}
             {trend.category && <Badge variant="secondary">{trend.category.name}</Badge>}
-            {trend.kuzana_theme && <Badge variant="accent">TrendJack · {trend.kuzana_theme.replaceAll("_", " ")}</Badge>}
             {trend.platforms.map((platform) => (
               <Badge key={platform} variant="outline">
                 {platform}
@@ -98,12 +100,6 @@ export function TrendCard({ trend }: { trend: TrendListItem }) {
                   <span className="font-medium text-foreground">{trend.opportunity_score}</span>
                 </>
               )}
-            </p>
-          )}
-          {trend.kuzana_relevance_score !== null && (
-            <p className="text-xs text-muted-foreground">
-              TrendJack fit <span className="font-medium text-foreground">{trend.kuzana_relevance_score}/100</span>
-              {trend.kuzana_geo_relevance && <> · {trend.kuzana_geo_relevance.replaceAll("_", " ")}</>}
             </p>
           )}
         </CardContent>

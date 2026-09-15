@@ -55,13 +55,6 @@ class TrendAnalysisResult:
     suggested_content_angle: str = ""
     summary: str = ""
     category_suggestion: str | None = None
-    kuzana_relevance_score: int = 0
-    kuzana_relevance_reason: str = ""
-    kuzana_theme: str = ""
-    kuzana_geo_relevance: str = ""
-    kuzana_audience: str = ""
-    kuzana_content_format: str = ""
-    kuzana_practical_takeaway: str = ""
     opportunity_headline: str = ""
     founder_hook: str = ""
     investor_hook: str = ""
@@ -139,7 +132,6 @@ def parse_analysis_response(data: dict) -> TrendAnalysisResult:
         "content_creator_score",
         "founder_score",
         "investor_score",
-        "kuzana_relevance_score",
     ):
         try:
             value = int(data[key])
@@ -179,12 +171,6 @@ def parse_analysis_response(data: dict) -> TrendAnalysisResult:
         category_suggestion=(
             str(data["category_suggestion"]).strip() if data.get("category_suggestion") else None
         ),
-        kuzana_relevance_reason=str(data.get("kuzana_relevance_reason", "")).strip(),
-        kuzana_theme=str(data.get("kuzana_theme", "")).strip().lower(),
-        kuzana_geo_relevance=str(data.get("kuzana_geo_relevance", "")).strip().lower(),
-        kuzana_audience=str(data.get("kuzana_audience", "")).strip(),
-        kuzana_content_format=str(data.get("kuzana_content_format", "")).strip(),
-        kuzana_practical_takeaway=str(data.get("kuzana_practical_takeaway", "")).strip(),
         opportunity_headline=editorial_copy("opportunity_headline", 180),
         founder_hook=editorial_copy("founder_hook", 240),
         investor_hook=editorial_copy("investor_hook", 240),
@@ -222,21 +208,9 @@ lifecycle stage
 cover this trend (not generic advice — reference the actual trend)
 - summary: string, 2-3 sentence neutral summary of the trend itself
 - category_suggestion: short string category name (e.g. "Fintech", "AI Tools", "Politics"), or null
-- kuzana_relevance_score: integer 0-100. Score relevance for TrendJack Hunter: Kenyan founders, aspiring \
-entrepreneurs, SME owners, and ambitious young professionals. Give a high score only for practical \
-entrepreneurship, money, business, startup, career, creator-economy, or founder-culture value.
-- kuzana_relevance_reason: one sentence explaining the Kenya/East Africa or practical founder connection. \
-Do not invent a local connection; say why a global story offers a useful lesson when applicable.
-- kuzana_theme: exactly one of "startups", "funding", "fintech", "sales_marketing", "side_hustles", \
-"careers", "technology", "founder_story", "creator_economy", "business_policy", or "other"
-- kuzana_geo_relevance: exactly one of "kenya", "east_africa", "africa", "global_lesson", or "not_relevant"
-- kuzana_audience: short label such as "first-time founders", "SME owners", or "aspiring entrepreneurs"
-- kuzana_content_format: exactly one practical format: "explainer", "hot take", "case study", \
-"myth bust", "founder story", or "practical playbook"
-- kuzana_practical_takeaway: one concrete action or lesson for a Kenyan founder; empty only when irrelevant
-- opportunity_headline: a clear 8-14 word TrendJack Hunter opportunity headline. It must be a defensible
-interpretation of the supplied sources, not a rewritten fact, not clickbait, and must not invent Kenyan
-connections. Return an empty string if the evidence does not support a useful TrendJack Hunter angle.
+- opportunity_headline: a clear 8-14 word opportunity headline. It must be a defensible
+interpretation of the supplied sources, not a rewritten fact or clickbait. Return an empty string if the
+evidence does not support a useful opportunity angle.
 - founder_hook: one short, specific prompt for a founder to consider. Return an empty string when no
 defensible founder implication exists.
 - investor_hook: one short, specific prompt for an investor to consider. Return an empty string when no
@@ -282,12 +256,6 @@ class ContentBriefContext:
     why_it_matters: str = ""
     trend_stage: str = ""
     estimated_lifespan: str = ""
-    kuzana_relevance_reason: str = ""
-    kuzana_theme: str = ""
-    kuzana_geo_relevance: str = ""
-    kuzana_audience: str = ""
-    kuzana_content_format: str = ""
-    kuzana_practical_takeaway: str = ""
     opportunity_headline: str = ""
 
 
@@ -339,10 +307,7 @@ into publishable short-form content for founders, entrepreneurs, investors, and 
 a trend and why it matters, respond with ONLY a JSON object (no markdown, no commentary) with \
 exactly these keys:
 
-TrendJack Hunter's audience is Kenyan founders, aspiring entrepreneurs, SME owners, and ambitious young \
-professionals. Ground each angle in the supplied TrendJack Hunter editorial context. Translate global news \
-into a practical local lesson when that context says it is a global lesson; never invent Kenyan \
-facts, statistics, companies, or endorsements.
+Ground each angle in the supplied trend evidence. Never invent facts, statistics, companies, or endorsements.
 
 - business_angle: string, 2-3 sentences on how to frame this trend for a general business audience
 - founder_angle: string, 2-3 sentences on how a startup founder specifically could talk about this
@@ -370,7 +335,7 @@ class ContentPieceContext:
 
     `perspective`, when set, is the Content Perspective the user chose
     for the parent brief — it's the strongest single influence on tone
-    for every content type (hook, script, CTA, hashtags, remix), per
+    for every core content type (hook, script, post), per
     product spec, which is why it's threaded all the way down here
     rather than just shaping the brief's angle.
     """
@@ -400,23 +365,6 @@ CONTENT_TYPE_INSTRUCTIONS = {
     "post": (
         "Write a concise, publish-ready social post with a strong opening, useful insight, "
         "and a clear closing thought. Use short paragraphs and plain text."
-    ),
-    "script_60": (
-        "Write a ~60 second short-form video script (roughly 150-170 words) with a hook, "
-        "2-3 key points, and a closing line. Plain text, no scene directions."
-    ),
-    "cta": "Write 3 short call-to-action lines suitable for the end of a short-form video or post.",
-    "hashtags": (
-        "Write 8-12 relevant hashtags for this content, space-separated on one line, no "
-        "explanations."
-    ),
-    "thumbnail_suggestion": (
-        "Describe a compelling thumbnail concept in 2-3 sentences: composition, any text "
-        "overlay, and the expression/emotion to convey."
-    ),
-    "remix_template": (
-        "Describe a reusable content format/template other creators could remix for this "
-        "trend, in 3-4 sentences."
     ),
 }
 
@@ -523,24 +471,8 @@ class AIProvider(ABC):
             lines.append(f"Trend stage: {context.trend_stage}")
         if context.estimated_lifespan:
             lines.append(f"Estimated lifespan: {context.estimated_lifespan}")
-        lines.append(
-            "TrendJack Hunter editorial lens: make this useful to Kenyan founders, aspiring entrepreneurs, "
-            "SME owners, or ambitious young professionals. Avoid invented local facts."
-        )
-        if context.kuzana_relevance_reason:
-            lines.append(f"Why it is TrendJack-relevant: {context.kuzana_relevance_reason}")
         if context.opportunity_headline:
-            lines.append(f"TrendJack opportunity framing: {context.opportunity_headline}")
-        if context.kuzana_theme:
-            lines.append(f"TrendJack theme: {context.kuzana_theme}")
-        if context.kuzana_geo_relevance:
-            lines.append(f"Geographic relevance: {context.kuzana_geo_relevance}")
-        if context.kuzana_audience:
-            lines.append(f"TrendJack audience: {context.kuzana_audience}")
-        if context.kuzana_content_format:
-            lines.append(f"Recommended TrendJack format: {context.kuzana_content_format}")
-        if context.kuzana_practical_takeaway:
-            lines.append(f"Practical takeaway: {context.kuzana_practical_takeaway}")
+            lines.append(f"Opportunity framing: {context.opportunity_headline}")
         if context.trend_score is not None:
             lines.append(f"Trend score: {context.trend_score}/100")
         if context.opportunity_score is not None:

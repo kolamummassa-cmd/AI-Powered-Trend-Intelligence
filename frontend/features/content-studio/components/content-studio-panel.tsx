@@ -199,20 +199,16 @@ export function ContentStudioPanel({
               </div>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <AngleBlurb label="For business owners" help="How this could affect a business." text={brief.business_angle} />
-              <AngleBlurb label="For startup founders" help="What a founder can learn or do." text={brief.founder_angle} />
-              <AngleBlurb label="Explain it simply" help="A plain way to introduce the idea to beginners." text={brief.educational_angle} />
-              <AngleBlurb label="For marketing" help="How to communicate this idea to an audience." text={brief.marketing_angle} />
-            </div>
-
             {brief.talking_points.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {brief.talking_points.map((point, i) => (
-                  <Badge key={i} variant="outline" className="font-normal">
-                    {point}
-                  </Badge>
-                ))}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Key talking points</p>
+                <div className="flex flex-wrap gap-2">
+                  {brief.talking_points.map((point, i) => (
+                    <Badge key={i} variant="outline" className="font-normal">
+                      {point}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -223,13 +219,7 @@ export function ContentStudioPanel({
                   (createContent.isPending && createContent.variables?.contentType === contentType) || jobIsActive;
 
                 return (
-                  <div key={contentType}>
-                    {contentType === "script_60" && (
-                      <p className="pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Advanced publishing assets
-                      </p>
-                    )}
-                  <div className="rounded-md border border-border p-3">
+                  <div key={contentType} className="rounded-md border border-border p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <div>
                         <p className="text-sm font-medium">{CONTENT_TYPE_LABELS[contentType]}</p>
@@ -270,10 +260,9 @@ export function ContentStudioPanel({
                       <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                         {latest.body}
                       </p>
-                    ) : (
+                  ) : (
                       <p className="text-sm text-muted-foreground">Not generated yet.</p>
                     )}
-                  </div>
                   </div>
                 );
               })}
@@ -282,17 +271,6 @@ export function ContentStudioPanel({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function AngleBlurb({ label, help, text }: { label: string; help: string; text: string }) {
-  if (!text) return null;
-  return (
-    <div className="space-y-1">
-      <p className="text-sm font-medium text-foreground">{label}</p>
-      <p className="text-xs text-muted-foreground">{help}</p>
-      <p className="text-sm text-muted-foreground">{text}</p>
-    </div>
   );
 }
 

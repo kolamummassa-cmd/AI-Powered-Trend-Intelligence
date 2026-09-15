@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
+/* ThemeProvider is the single source of truth for the app theme. Tailwind's
+ * default `dark:` variant follows the operating-system preference, which can
+ * make muted text white while the app is intentionally in light mode. Scope
+ * dark utilities to the explicit `.dark` class instead. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Design tokens for the AI-Powered Trend Intelligence platform.
  * Ported from the "I Speak Society" design system reference (Kolamu's

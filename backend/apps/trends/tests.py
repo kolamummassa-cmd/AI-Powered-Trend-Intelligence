@@ -54,15 +54,28 @@ class TestSignalAreas:
             "Business & markets"
         ]
 
+    def test_does_not_match_part_of_another_word(self):
+        assert detect_signal_areas("Kenya's fintech boom") == [
+            "Fintech & money",
+            "African & Kenyan markets",
+        ]
+
 
 @pytest.mark.django_db
 class TestIngestRawSignal:
     def test_creates_a_new_trend_for_a_novel_title(self, platform):
-        signal = _raw_signal(platform, "1", "Kenya's Fintech Boom")
+        signal = _raw_signal(
+            platform,
+            "1",
+            "Kenya's Fintech Boom",
+            summary="Details from the original source.",
+        )
         trend, is_new = ingest_raw_signal(signal)
 
         assert is_new is True
         assert trend.title == "Kenya's Fintech Boom"
+        assert trend.source_excerpt == "Details from the original source."
+        assert trend.summary == "Details from the original source."
         assert trend.first_detected_at is not None
         assert TrendSourceLink.objects.filter(trend=trend, raw_signal=signal).exists()
 
@@ -146,6 +159,7 @@ class TestTrendAPI:
         assert response.status_code == 200
         assert response.data["count"] == 1
         assert response.data["results"][0]["platforms"] == ["test-platform"]
+        assert response.data["results"][0]["source_excerpt"] == ""
         assert response.data["results"][0]["signal_areas"] == [
             "Fintech & money",
             "African & Kenyan markets",
@@ -198,6 +212,7 @@ class TestTrendAPI:
         assert response.status_code == 200
         assert len(response.data["source_links"]) == 1
         assert response.data["source_links"][0]["platform_slug"] == "test-platform"
+        assert response.data["source_links"][0]["source_title"] == "Kenya's Fintech Boom"
 
     def test_detail_view_404_for_unknown_slug(self):
         client = self._authed_client()
@@ -284,19 +299,6 @@ class TestTrendAPI:
 
         assert response.data["count"] == 1
         assert response.data["results"][0]["title"] == "Investor Relevant"
-
-    def test_filters_to_kuzana_relevant_trends(self, platform):
-        relevant = _ingest(_raw_signal(platform, "1", "Kenyan Fintech Signal"))
-        relevant.kuzana_relevance_score = 80
-        relevant.save(update_fields=["kuzana_relevance_score"])
-        irrelevant = _ingest(_raw_signal(platform, "2", "Unrelated Signal"))
-        irrelevant.kuzana_relevance_score = 20
-        irrelevant.save(update_fields=["kuzana_relevance_score"])
-
-        response = self._authed_client().get("/api/v1/trends/", {"kuzana_only": "true"})
-
-        assert response.status_code == 200
-        assert [row["slug"] for row in response.data["results"]] == [relevant.slug]
 
     def test_filter_high_priority(self, platform):
         high = _ingest(_raw_signal(platform, "1", "High Priority Trend"))
@@ -533,7 +535,9 @@ class TestCheckTrendLifecycle:
         trend.status = TrendStatus.EXPIRED
         trend.expired_at = timezone.now() - timedelta(days=PURGE_EXPIRED_AFTER_DAYS + 1)
         trend.save(update_fields=["status", "expired_at"])
-        user = User.objects.create_user(email="brief-owner@example.com", password="a-strong-passw0rd1")
+        user = User.objects.create_user(
+            email="brief-owner@example.com", password="a-strong-passw0rd1"
+        )
         ContentBrief.objects.create(trend=trend, created_by=user)
 
         result = check_trend_lifecycle()

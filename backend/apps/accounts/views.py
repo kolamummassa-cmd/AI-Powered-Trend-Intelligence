@@ -1,8 +1,6 @@
 import logging
-from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -31,7 +29,6 @@ from apps.accounts.serializers import (
 from apps.accounts.verification import (
     consume_pending_signup,
     create_pending_signup,
-    new_verification_code,
     resend_pending_signup_code,
 )
 
@@ -185,24 +182,6 @@ class VerifyEmailView(APIView):
                 }
             )
 
-        user = serializer.validated_data["user"]
-        user.is_verified = True
-        user.email_verification_code = ""
-        user.email_verification_code_expires_at = None
-        user.save(
-            update_fields=[
-                "is_verified",
-                "email_verification_code",
-                "email_verification_code_expires_at",
-            ]
-        )
-        return _auth_response(
-            {
-                "user": {"id": str(user.id), "email": user.email, "is_verified": True},
-                **_tokens_for(user),
-            }
-        )
-
 
 class ResendVerificationView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -216,20 +195,6 @@ class ResendVerificationView(APIView):
         code = resend_pending_signup_code(email)
         if code:
             send_verification_email(email, code)
-        else:
-            # Support an account created by the earlier implementation until
-            # it verifies; new sign-ups are held only in the cache.
-            user = User.objects.filter(email=email, is_verified=False).first()
-            if user:
-                code = new_verification_code()
-                user.email_verification_code = make_password(code)
-                user.email_verification_code_expires_at = timezone.now() + timedelta(
-                    minutes=settings.EMAIL_VERIFICATION_CODE_TTL_MINUTES
-                )
-                user.save(
-                    update_fields=["email_verification_code", "email_verification_code_expires_at"]
-                )
-                send_verification_email(email, code)
 
         # Same response whether or not the account exists / is already
         # verified — this endpoint must not leak account existence.

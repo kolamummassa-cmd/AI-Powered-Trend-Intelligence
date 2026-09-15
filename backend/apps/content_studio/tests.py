@@ -179,10 +179,10 @@ class TestGenerateContent:
         mock_get_provider.return_value = mock_provider
 
         hook = generate_content(brief, "hook")
-        cta = generate_content(brief, "cta")
+        post = generate_content(brief, "post")
 
         assert hook.version == 1
-        assert cta.version == 1
+        assert post.version == 1
 
     @patch("apps.content_studio.services.get_ai_provider")
     def test_passes_the_mapped_angle_to_the_provider(self, mock_get_provider, brief):
@@ -193,11 +193,11 @@ class TestGenerateContent:
         mock_provider.generate_content_piece.return_value = FAKE_CONTENT_RESULT
         mock_get_provider.return_value = mock_provider
 
-        generate_content(brief, "cta")
+        generate_content(brief, "post")
 
         call_context = mock_provider.generate_content_piece.call_args[0][0]
         assert call_context.angle == brief.marketing_angle
-        assert call_context.content_type == "cta"
+        assert call_context.content_type == "post"
 
     @patch("apps.content_studio.services.get_ai_provider")
     def test_content_angle_is_combined_with_the_format_specific_angle(self, mock_get_provider, trend):
@@ -212,7 +212,7 @@ class TestGenerateContent:
         mock_provider.generate_content_piece.return_value = FAKE_CONTENT_RESULT
         mock_get_provider.return_value = mock_provider
 
-        generate_content(perspective_brief, "cta")
+        generate_content(perspective_brief, "post")
 
         call_context = mock_provider.generate_content_piece.call_args[0][0]
         assert "Audience focus: An investor-focused angle." in call_context.angle
@@ -373,6 +373,7 @@ class TestContentBriefAPI:
 
         assert response.status_code == 200
         assert len(response.data["generated_content"]) == 1
+        assert response.data["generated_content"][0]["body"] == "A hook"
 
     def test_other_users_briefs_are_not_listed_or_retrievable(self, brief, user):
         other = User.objects.create_user(
@@ -412,6 +413,16 @@ class TestGeneratedContentAPI:
         assert response.status_code == 202
         assert response.data["job_type"] == AIJob.JobType.GENERATE_CONTENT
 
+    def test_rejects_retired_content_formats(self, brief, user):
+        client = _authed_client(user)
+
+        response = client.post(
+            "/api/v1/content/pieces/",
+            {"brief_id": str(brief.id), "content_type": "cta"},
+        )
+
+        assert response.status_code == 400
+
     def test_filters_by_brief_and_is_saved(self, brief, user):
         saved = GeneratedContent.objects.create(
             brief=brief,
@@ -424,7 +435,7 @@ class TestGeneratedContentAPI:
         GeneratedContent.objects.create(
             brief=brief,
             created_by=user,
-            content_type="cta",
+            content_type="script_30",
             body="unsaved",
             version=1,
             is_saved=False,
@@ -447,6 +458,7 @@ class TestGeneratedContentAPI:
         response = client.patch(f"/api/v1/content/pieces/{content.id}/", {"is_saved": True})
 
         assert response.status_code == 200
+        assert response.data["body"] == "A hook"
         content.refresh_from_db()
         assert content.is_saved is True
 
@@ -472,16 +484,18 @@ class TestGeneratedContentAPI:
         content.refresh_from_db()
         assert content.is_saved is False
 
-    def test_patch_cannot_change_body(self, brief, user):
+    def test_owner_can_edit_body(self, brief, user):
         content = GeneratedContent.objects.create(
             brief=brief, created_by=user, content_type="hook", body="Original", version=1
         )
 
         client = _authed_client(user)
-        client.patch(f"/api/v1/content/pieces/{content.id}/", {"body": "Hacked"})
+        response = client.patch(f"/api/v1/content/pieces/{content.id}/", {"body": "Edited"})
 
+        assert response.status_code == 200
+        assert response.data["body"] == "Edited"
         content.refresh_from_db()
-        assert content.body == "Original"
+        assert content.body == "Edited"
 
     def test_other_user_cannot_read_or_update_content(self, brief, user):
         content = GeneratedContent.objects.create(

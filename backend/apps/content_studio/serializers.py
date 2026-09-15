@@ -20,18 +20,18 @@ class GeneratedContentSerializer(serializers.ModelSerializer):
             "perspective",
             "brief_context",
             "content_type",
+            "body",
             "version",
             "is_saved",
             "model_used",
             "created_at",
         )
-        # is_saved is the only field a client ever updates directly —
-        # everything else is produced by the generation service.
+        # Users may save or edit the generated body. Identity, format, and
+        # versioning remain controlled by the generation service.
         read_only_fields = (
             "id",
             "brief",
             "content_type",
-            "body",
             "version",
             "model_used",
             "created_at",

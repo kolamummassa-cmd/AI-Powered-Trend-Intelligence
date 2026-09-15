@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContentStudioPanel } from "@/features/content-studio/components/content-studio-panel";
 import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
-import { AUDIENCE_LABELS, type AudienceType } from "@/features/trends/api/trends-api";
+import { AUDIENCE_LABELS, type AudienceType, type TrendSourceLink } from "@/features/trends/api/trends-api";
 import { useReanalyzeTrend, useTrend, useTrendFeedback } from "@/features/trends/api/use-trend";
 import { ScoreBar } from "@/features/trends/components/score-bar";
 
@@ -22,10 +22,10 @@ const STATUS_VARIANT = {
 } as const;
 
 const RELEVANCE_FIELDS = [
-  { key: "business_relevance", label: "Business relevance" },
-  { key: "founder_relevance", label: "Founder relevance" },
-  { key: "entrepreneurship_relevance", label: "Entrepreneurship opportunity" },
-  { key: "ai_relevance", label: "AI relevance" },
+  { key: "business_relevance", label: "For businesses" },
+  { key: "founder_relevance", label: "For founders" },
+  { key: "entrepreneurship_relevance", label: "Opportunity to explore" },
+  { key: "ai_relevance", label: "Connection to AI" },
 ] as const;
 
 const TREND_STAGE_VARIANT = {
@@ -35,28 +35,13 @@ const TREND_STAGE_VARIANT = {
   declining: "secondary",
 } as const;
 
-const KUZANA_METADATA_LABELS = {
-  kuzana_theme: "Topic",
-  kuzana_geo_relevance: "Connection to Kenya",
-  kuzana_content_format: "Suggested way to cover it",
-} as const;
+const EMPTY_ANALYSIS_VALUES = new Set(["", "-", "n/a", "na", "none", "null", "undefined"]);
 
-const PLAIN_LANGUAGE_METADATA: Record<string, string> = {
-  global_lesson: "A useful lesson from outside Kenya",
-  east_africa: "Directly relevant in East Africa",
-  africa: "Relevant across Africa",
-  kenya: "Directly relevant in Kenya",
-  not_relevant: "No clear local connection",
-  practical_playbook: "Step-by-step guide",
-  hot_take: "A clear opinion",
-  case_study: "A real-world example",
-  myth_bust: "Correct a common misunderstanding",
-  founder_story: "A founder lesson",
-  explainer: "A simple explanation",
-};
-
-function readableMetadata(value: string) {
-  return PLAIN_LANGUAGE_METADATA[value] || value.replaceAll("_", " ");
+function meaningfulText(value: string | null | undefined) {
+  // Some earlier AI responses stored invisible zero-width characters or
+  // placeholder words. Neither should create an empty-looking card.
+  const text = (value ?? "").replace(/[\u200B-\u200F\u2060\uFEFF]/g, "").trim();
+  return EMPTY_ANALYSIS_VALUES.has(text.toLowerCase()) ? "" : text;
 }
 
 export function TrendDetail({ slug }: { slug: string }) {
@@ -68,6 +53,10 @@ export function TrendDetail({ slug }: { slug: string }) {
   const retryJob = useRetryAIJob();
   const queryClient = useQueryClient();
   const jobIsActive = job?.status === "queued" || job?.status === "running";
+
+  function requestAnalysis() {
+    reanalyze.mutate(undefined, { onSuccess: (nextJob) => setJobId(nextJob.id) });
+  }
 
   useEffect(() => {
     if (job?.status === "completed") {
@@ -102,14 +91,23 @@ export function TrendDetail({ slug }: { slug: string }) {
 
   const analysis = trend.latest_analysis;
   const displayTitle = trend.opportunity_headline || trend.title;
-  const audienceHooks = [
-    { audience: "founders" as const, copy: trend.founder_hook },
-    { audience: "investors" as const, copy: trend.investor_hook },
-    { audience: "content_creators" as const, copy: trend.creator_hook },
-  ].filter(({ copy }) => Boolean(copy));
-  const hasIntelligence = Boolean(
-    trend.what_is_happening || trend.why_spreading || trend.estimated_lifespan || trend.trend_stage,
-  );
+  const intelligenceItems = [
+    { label: "What’s happening", text: meaningfulText(trend.what_is_happening) },
+    { label: "Why it’s spreading", text: meaningfulText(trend.why_spreading) },
+    { label: "Why it matters", text: meaningfulText(trend.why_it_matters) },
+  ].filter((item) => Boolean(item.text));
+  const relevanceItems = analysis
+    ? RELEVANCE_FIELDS.map(({ key, label }) => ({ label, text: meaningfulText(analysis[key]) })).filter(
+        (item) => Boolean(item.text),
+      )
+    : [];
+  const lifespan = meaningfulText(trend.estimated_lifespan);
+  const hasLifecycle = Boolean(lifespan || trend.trend_stage);
+  const hasAnalysisExplanation = intelligenceItems.length > 0 || relevanceItems.length > 0;
+  const needsAnalysisExplanation = !analysis || !hasAnalysisExplanation;
+  const overview = analysis || trend.analyzed_at
+    ? meaningfulText(trend.what_is_happening) || meaningfulText(trend.summary)
+    : meaningfulText(trend.source_excerpt) || meaningfulText(trend.summary);
 
   return (
     <div className="space-y-6 pb-6">
@@ -129,7 +127,7 @@ export function TrendDetail({ slug }: { slug: string }) {
           variant="outline"
           size="sm"
           className="border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-          onClick={() => reanalyze.mutate(undefined, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
+          onClick={requestAnalysis}
           disabled={reanalyze.isPending || jobIsActive}
         >
           <RefreshCwIcon className={reanalyze.isPending || jobIsActive ? "animate-spin" : undefined} />
@@ -161,60 +159,11 @@ export function TrendDetail({ slug }: { slug: string }) {
         </p>
       )}
 
-      {trend.kuzana_relevance_score !== null && (
-        <Card className="border-accent/30">
-          <CardHeader>
-            <CardTitle className="text-base">Why this trend is useful for TrendJack Hunter</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              A quick explanation of the value this trend could offer TrendJack Hunter&apos;s audience.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Badge variant="accent">TrendJack fit: {trend.kuzana_relevance_score}/100</Badge>
-            <p className="text-xs text-muted-foreground">
-              This score estimates how useful the trend is for Kenyan founders, entrepreneurs, and creators.
-            </p>
-            <dl className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-3">
-              {(["kuzana_theme", "kuzana_geo_relevance", "kuzana_content_format"] as const).map((key) => {
-                const value = trend[key];
-                if (!value) return null;
-                return (
-                  <div key={key}>
-                    <dt className="text-xs font-medium text-muted-foreground">{KUZANA_METADATA_LABELS[key]}</dt>
-                    <dd className="mt-1 font-medium capitalize">{readableMetadata(value)}</dd>
-                  </div>
-                );
-              })}
-            </dl>
-            {trend.kuzana_relevance_reason && <p>{trend.kuzana_relevance_reason}</p>}
-            {trend.kuzana_audience && <p className="text-muted-foreground">Most useful for: {trend.kuzana_audience}</p>}
-            {trend.kuzana_practical_takeaway && <p className="font-medium">What you can do: {trend.kuzana_practical_takeaway}</p>}
-          </CardContent>
-        </Card>
+      {overview && (
+        <p className="max-w-3xl break-words text-base leading-6 text-muted-foreground">{overview}</p>
       )}
 
-      {audienceHooks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ideas for different readers</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              These questions help each audience see why the trend may matter. They are prompts, not scores or buttons.
-            </p>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            {audienceHooks.map(({ audience, copy }) => (
-              <div key={audience} className="space-y-1 rounded-md border border-border p-3">
-                <p className="text-sm font-medium">If you are {AUDIENCE_LABELS[audience].toLowerCase()}</p>
-                <p className="text-sm text-muted-foreground">{copy}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {trend.summary && (
-        <p className="max-w-3xl break-words text-base leading-6 text-muted-foreground">{trend.summary}</p>
-      )}
+      <SourceEvidence links={trend.source_links} />
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <ContentStudioPanel trendSlug={trend.slug} bestAudience={trend.best_audience || undefined} />
@@ -240,11 +189,21 @@ export function TrendDetail({ slug }: { slug: string }) {
         </aside>
       </div>
 
-      {!analysis && (
-        <p className="text-sm text-muted-foreground">
-          AI analysis hasn&apos;t run for this trend yet — scores and explanations will appear
-          here once it does. Use &quot;Analyze now&quot; above to run it immediately.
-        </p>
+      {needsAnalysisExplanation && (
+        <Card className="border-dashed border-primary/50 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-base">Detailed analysis is not ready yet</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Run analysis to see a plain explanation of what is happening, why it matters, and who can act on it.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button size="sm" onClick={requestAnalysis} disabled={reanalyze.isPending || jobIsActive}>
+              <RefreshCwIcon className={reanalyze.isPending || jobIsActive ? "animate-spin" : undefined} />
+              {reanalyze.isPending || jobIsActive ? "Queueing..." : "Analyze this trend"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {reanalyze.isError && (
@@ -294,17 +253,6 @@ export function TrendDetail({ slug }: { slug: string }) {
         </Card>
       )}
 
-      {trend.why_it_matters && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Why this matters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-black/70 dark:text-white/70">{trend.why_it_matters}</p>
-          </CardContent>
-        </Card>
-      )}
-
       {trend.action_summary && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
@@ -326,107 +274,61 @@ export function TrendDetail({ slug }: { slug: string }) {
         </Card>
       )}
 
-      {hasIntelligence && (
+      {(intelligenceItems.length > 0 || hasLifecycle) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Trend intelligence</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {trend.what_is_happening && (
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">What&apos;s happening</p>
-                <p className="text-sm text-black/70 dark:text-white/70">{trend.what_is_happening}</p>
+            {intelligenceItems.map(({ label, text }) => (
+              <div key={label} className="space-y-1">
+                <p className="text-sm font-medium text-foreground">{label}</p>
+                <p className="text-sm text-black/70 dark:text-white/70">{text}</p>
               </div>
-            )}
-            {trend.why_spreading && (
+            ))}
+            {hasLifecycle && (
               <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">Why it&apos;s spreading</p>
-                <p className="text-sm text-black/70 dark:text-white/70">{trend.why_spreading}</p>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-4">
-              {trend.estimated_lifespan && (
-                <p className="text-muted-foreground">
-                  Estimated lifespan:{" "}
-                  <span className="text-foreground">{trend.estimated_lifespan}</span>
-                </p>
-              )}
-              {trend.trend_stage && (
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Trend stage:</span>
-                  <Badge variant={TREND_STAGE_VARIANT[trend.trend_stage]}>
-                    {trend.trend_stage}
-                  </Badge>
+                <p className="text-sm font-medium text-foreground">Trend timing</p>
+                <div className="flex flex-wrap items-center gap-4">
+                  {lifespan && (
+                    <p className="text-muted-foreground">
+                      Estimated lifespan: {" "}
+                      <span className="text-foreground">{lifespan}</span>
+                    </p>
+                  )}
+                  {trend.trend_stage && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Trend stage:</span>
+                      <Badge variant={TREND_STAGE_VARIANT[trend.trend_stage]}>
+                        {trend.trend_stage}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {analysis && (
-        <details className="rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer px-6 py-4 text-base font-semibold">AI relevance breakdown</summary>
-          <Card className="border-0 shadow-none">
+      {relevanceItems.length > 0 && (
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base">AI relevance breakdown</CardTitle>
+            <CardTitle className="text-base">Practical perspectives</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              AI-generated explanations of how this trend could matter to different people.
+            </p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            {RELEVANCE_FIELDS.map(({ key, label }) => (
-              <div key={key} className="space-y-1">
+            {relevanceItems.map(({ label, text }) => (
+              <div key={label} className="space-y-1 rounded-lg border border-border p-3">
                 <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-sm text-black/70 dark:text-white/70">{analysis[key]}</p>
+                <p className="text-sm text-black/70 dark:text-white/70">{text}</p>
               </div>
             ))}
           </CardContent>
-          </Card>
-        </details>
-      )}
-
-      <details className="group rounded-xl border border-primary bg-card shadow-sm transition-shadow hover:shadow-md">
-        <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4">
-          <span className="text-base font-semibold">Source evidence</span>
-          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <span className="group-open:hidden">Show sources</span>
-            <span className="hidden group-open:inline">Hide sources</span>
-            <span className="tracking-[0.2em]">{trend.source_links.length} · 04</span>
-            <ChevronDownIcon className="size-4 transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
-          </span>
-        </summary>
-        <Card className="border-0 shadow-none">
-          <CardContent className="space-y-2 pt-2">
-          {trend.source_links.length === 0 && (
-            <p className="text-sm text-muted-foreground">No sources recorded yet.</p>
-          )}
-          {trend.source_links.map((link) => (
-            <div
-              key={`${link.platform_slug}-${link.created_at}`}
-              className="flex items-center justify-between gap-2 rounded-md border border-primary/60 px-3 py-2 text-sm"
-            >
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{link.platform}</Badge>
-                <span className="text-muted-foreground">
-                  {new Date(link.created_at).toLocaleString()}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Credibility {link.credibility_weight}/100 · relevance {link.relevance_score}/100
-                </span>
-              </div>
-              {link.source_url && (
-                <a
-                  href={link.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
-                >
-                  View <ExternalLinkIcon className="size-3.5" />
-                </a>
-              )}
-            </div>
-          ))}
-          </CardContent>
         </Card>
-      </details>
+      )}
 
       {(trend.best_audience || trend.suggested_content_angle) && (
         <Card>
@@ -453,5 +355,55 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
     </div>
+  );
+}
+
+function SourceEvidence({ links }: { links: TrendSourceLink[] }) {
+  return (
+    <details className="group rounded-xl border border-primary bg-card shadow-sm transition-shadow hover:shadow-md">
+      <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4">
+        <span className="text-base font-semibold">Source evidence</span>
+        <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <span className="group-open:hidden">Show sources</span>
+          <span className="hidden group-open:inline">Hide sources</span>
+          <span className="tracking-[0.2em]">{links.length} · 04</span>
+          <ChevronDownIcon className="size-4 transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
+        </span>
+      </summary>
+      <Card className="border-0 shadow-none">
+        <CardContent className="space-y-2 pt-2">
+          {links.length === 0 && (
+            <p className="text-sm text-muted-foreground">No sources recorded yet.</p>
+          )}
+          {links.map((link) => (
+            <div
+              key={`${link.platform_slug}-${link.created_at}`}
+              className="flex items-center justify-between gap-2 rounded-md border border-primary/60 px-3 py-2 text-sm"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">{link.platform}</Badge>
+                  <span className="text-xs text-muted-foreground">{new Date(link.created_at).toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground">
+                    Credibility {link.credibility_weight}/100 · relevance {link.relevance_score}/100
+                  </span>
+                </div>
+                <p className="truncate text-sm font-medium text-foreground">{link.source_title}</p>
+              </div>
+              {link.source_url && (
+                <a
+                  href={link.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-primary hover:underline"
+                >
+                  View <ExternalLinkIcon className="size-3.5" />
+                </a>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </details>
   );
 }

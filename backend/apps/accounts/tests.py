@@ -109,6 +109,22 @@ class TestLogin:
         )
         assert response.status_code == 401
 
+    def test_login_rejects_an_unverified_legacy_account(self):
+        client = APIClient()
+        User.objects.create_user(
+            email="legacy@example.com",
+            password=VALID_PASSWORD,
+            is_verified=False,
+        )
+
+        response = client.post(
+            "/api/v1/auth/login/",
+            {"email": "legacy@example.com", "password": VALID_PASSWORD},
+            format="json",
+        )
+
+        assert response.status_code == 401
+
 
 @pytest.mark.django_db
 class TestTokenLifecycle:

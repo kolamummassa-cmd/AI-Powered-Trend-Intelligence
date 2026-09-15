@@ -9,18 +9,13 @@ from apps.trends.filters import HIGH_PRIORITY_OPPORTUNITY_SCORE, HIGH_PRIORITY_T
 from apps.trends.models import Category, Trend
 
 
-OPPORTUNITY_HEADLINE_MIN_KUZANA_SCORE = 70
 OPPORTUNITY_HEADLINE_MIN_CONFIDENCE_SCORE = 60
 
 
 def _should_surface_opportunity_copy(result) -> bool:
-    """Only turn a source headline into editorial copy when the model has
-    both a strong TrendJack Hunter connection and enough evidence confidence.
-    """
-    return (
-        result.kuzana_relevance_score >= OPPORTUNITY_HEADLINE_MIN_KUZANA_SCORE
-        and result.confidence_score >= OPPORTUNITY_HEADLINE_MIN_CONFIDENCE_SCORE
-        and bool(result.opportunity_headline)
+    """Only turn a source headline into editorial copy when evidence is sufficient."""
+    return result.confidence_score >= OPPORTUNITY_HEADLINE_MIN_CONFIDENCE_SCORE and bool(
+        result.opportunity_headline
     )
 
 
@@ -67,7 +62,7 @@ def _build_context(trend: Trend) -> TrendAnalysisContext:
     ]
     return TrendAnalysisContext(
         title=trend.title,
-        existing_summary=trend.summary,
+        existing_summary=trend.source_excerpt or trend.summary,
         category_name=trend.category.name if trend.category else None,
         sources=sources,
     )
@@ -107,13 +102,6 @@ def analyze_trend(trend: Trend, provider_name: str | None = None) -> TrendAnalys
         what_is_happening=result.what_is_happening,
         trend_stage=result.trend_stage,
         suggested_content_angle=result.suggested_content_angle,
-        kuzana_relevance_score=result.kuzana_relevance_score,
-        kuzana_relevance_reason=result.kuzana_relevance_reason,
-        kuzana_theme=result.kuzana_theme,
-        kuzana_geo_relevance=result.kuzana_geo_relevance,
-        kuzana_audience=result.kuzana_audience,
-        kuzana_content_format=result.kuzana_content_format,
-        kuzana_practical_takeaway=result.kuzana_practical_takeaway,
         opportunity_headline=opportunity_headline,
         founder_hook=founder_hook,
         investor_hook=investor_hook,
@@ -134,20 +122,23 @@ def analyze_trend(trend: Trend, provider_name: str | None = None) -> TrendAnalys
     trend.what_is_happening = result.what_is_happening
     trend.trend_stage = result.trend_stage
     trend.suggested_content_angle = result.suggested_content_angle
-    trend.kuzana_relevance_score = result.kuzana_relevance_score
-    trend.kuzana_relevance_reason = result.kuzana_relevance_reason
-    trend.kuzana_theme = result.kuzana_theme
-    trend.kuzana_geo_relevance = result.kuzana_geo_relevance
-    trend.kuzana_audience = result.kuzana_audience
-    trend.kuzana_content_format = result.kuzana_content_format
-    trend.kuzana_practical_takeaway = result.kuzana_practical_takeaway
+    # Legacy Kuzana-specific fields remain in the database for compatibility
+    # with existing records, but new analyses deliberately clear them.
+    trend.kuzana_relevance_score = None
+    trend.kuzana_relevance_reason = ""
+    trend.kuzana_theme = ""
+    trend.kuzana_geo_relevance = ""
+    trend.kuzana_audience = ""
+    trend.kuzana_content_format = ""
+    trend.kuzana_practical_takeaway = ""
     trend.opportunity_headline = opportunity_headline
     trend.founder_hook = founder_hook
     trend.investor_hook = investor_hook
     trend.creator_hook = creator_hook
     trend.analyzed_at = timezone.now()
-    if not trend.summary and result.summary:
-        trend.summary = result.summary
+    # Keep the original source paragraph in source_excerpt and use summary
+    # for the clearer AI overview once analysis is available.
+    trend.summary = result.summary or result.what_is_happening
 
     if trend.category_id is None and result.category_suggestion:
         category, _ = Category.objects.get_or_create(

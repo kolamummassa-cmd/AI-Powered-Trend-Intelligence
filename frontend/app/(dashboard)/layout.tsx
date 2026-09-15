@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 import { useAuth } from "@/features/auth/context/auth-context";
 import { DashboardNav } from "@/features/dashboard/components/dashboard-nav";
@@ -15,6 +16,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace("/login");
     }
   }, [isLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+
+    if (window.sessionStorage.getItem("trend-intelligence-auth-notice") === "welcome-back") {
+      window.sessionStorage.removeItem("trend-intelligence-auth-notice");
+      toast.success("Welcome back.");
+    }
+  }, [isAuthenticated, isLoading]);
 
   if (isLoading || !isAuthenticated) {
     return (

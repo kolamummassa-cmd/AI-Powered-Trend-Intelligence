@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  CONTENT_TYPES,
   CONTENT_TYPE_DESCRIPTIONS,
   CONTENT_TYPE_LABELS,
 } from "@/features/content-studio/api/content-studio-api";
@@ -13,6 +14,9 @@ import { useSavedContent } from "@/features/content-studio/api/use-content-studi
 
 export function SavedContentLibrary() {
   const { data, isLoading, isError } = useSavedContent();
+  const visibleContent = data?.results.filter((content) =>
+    CONTENT_TYPES.includes(content.content_type),
+  );
 
   if (isLoading) {
     return (
@@ -28,11 +32,11 @@ export function SavedContentLibrary() {
     return <p className="text-sm text-danger">Could not load saved content.</p>;
   }
 
-  if (!data || data.results.length === 0) {
+  if (!visibleContent || visibleContent.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-16 text-center">
         <p className="text-muted-foreground">
-          Nothing saved yet. Save a hook, script, or hashtag set from a trend&apos;s Content
+          Nothing saved yet. Save a hook, short video script, or post from a trend&apos;s Content
           Studio panel to see it here.
         </p>
       </div>
@@ -41,7 +45,7 @@ export function SavedContentLibrary() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {data.results.map((content) => (
+      {visibleContent.map((content) => (
         <Link
           key={content.id}
           href={`/content/${content.id}`}

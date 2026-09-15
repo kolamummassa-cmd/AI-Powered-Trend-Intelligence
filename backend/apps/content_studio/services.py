@@ -12,11 +12,6 @@ ANGLE_FIELD_FOR_CONTENT_TYPE = {
     "hook": "founder_angle",
     "script_30": "business_angle",
     "post": "marketing_angle",
-    "script_60": "business_angle",
-    "cta": "marketing_angle",
-    "hashtags": "marketing_angle",
-    "thumbnail_suggestion": "educational_angle",
-    "remix_template": "educational_angle",
 }
 
 
@@ -39,12 +34,6 @@ def _build_brief_context(trend: Trend, perspective: str = "") -> ContentBriefCon
         why_it_matters=trend.why_it_matters,
         trend_stage=trend.trend_stage,
         estimated_lifespan=trend.estimated_lifespan,
-        kuzana_relevance_reason=trend.kuzana_relevance_reason,
-        kuzana_theme=trend.kuzana_theme,
-        kuzana_geo_relevance=trend.kuzana_geo_relevance,
-        kuzana_audience=trend.kuzana_audience,
-        kuzana_content_format=trend.kuzana_content_format,
-        kuzana_practical_takeaway=trend.kuzana_practical_takeaway,
         opportunity_headline=trend.opportunity_headline,
     )
 
@@ -100,8 +89,7 @@ def generate_content(
     Angle selection: the brief's perspective-driven `content_angle`
     (Content Perspective) sets the audience lens for every generated
     piece. It is combined with the per-content-type angle so a hook,
-    script, post, thumbnail, and reusable template do not all start
-    from the same generic instruction.
+    script, and post do not all start from the same generic instruction.
     """
     angle_field = ANGLE_FIELD_FOR_CONTENT_TYPE.get(content_type, "business_angle")
     format_angle = getattr(brief, angle_field, "") or brief.business_angle
@@ -126,8 +114,9 @@ def generate_content(
     with transaction.atomic():
         locked_brief = ContentBrief.objects.select_for_update().get(id=brief.id)
         latest_version = (
-            GeneratedContent.objects.filter(brief=locked_brief, content_type=content_type)
-            .aggregate(latest=Max("version"))["latest"]
+            GeneratedContent.objects.filter(
+                brief=locked_brief, content_type=content_type
+            ).aggregate(latest=Max("version"))["latest"]
             or 0
         )
         try:

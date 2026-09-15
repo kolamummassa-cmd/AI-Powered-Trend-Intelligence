@@ -7,13 +7,17 @@ so a new platform only ever needs a new class here plus a Platform
 row — never a change to the ingestion or analysis code.
 """
 
+import hashlib
 import logging
 import re
 from datetime import datetime, timezone as dt_timezone
+from html import unescape
+from html.parser import HTMLParser
 
 import feedparser
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.utils.html import strip_tags
 
 from apps.trend_sources.base import RawSignalData, TrendSourceAdapter, register_adapter
@@ -30,6 +34,112 @@ _LINK_METADATA_BOILERPLATE_RE = re.compile(
     r"^Article URL:.*Comments URL:.*Points:\s*\d+.*#\s*Comments:\s*\d+\s*$",
     re.DOTALL,
 )
+
+ARTICLE_EXCERPT_CACHE_TTL = 24 * 60 * 60
+ARTICLE_EXCERPT_MAX_LENGTH = 700
+
+
+class _ArticleExcerptParser(HTMLParser):
+    """Extract a publisher's description or first article paragraph without
+    bringing an HTML-scraping dependency into the ingestion worker.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.meta_descriptions: list[str] = []
+        self._article_depth = 0
+        self._paragraph_parts: list[str] | None = None
+        self.paragraphs: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "meta":
+            name = (attributes.get("property") or attributes.get("name") or "").lower()
+            content = attributes.get("content", "")
+            if name in {"og:description", "description"} and content:
+                # Open Graph descriptions are usually written for this exact
+                # purpose, so preserve their priority over generic metadata.
+                if name == "og:description":
+                    self.meta_descriptions.insert(0, content)
+                else:
+                    self.meta_descriptions.append(content)
+        elif tag == "article":
+            self._article_depth += 1
+        elif tag == "p" and self._article_depth:
+            self._paragraph_parts = []
+
+    def handle_endtag(self, tag):
+        if tag == "p" and self._paragraph_parts is not None:
+            paragraph = " ".join(self._paragraph_parts).strip()
+            if paragraph:
+                self.paragraphs.append(paragraph)
+            self._paragraph_parts = None
+        elif tag == "article" and self._article_depth:
+            self._article_depth -= 1
+
+    def handle_data(self, data):
+        if self._paragraph_parts is not None:
+            self._paragraph_parts.append(data)
+
+
+def _short_source_paragraph(value: str) -> str:
+    text = re.sub(r"\s+", " ", strip_tags(unescape(value or ""))).strip()
+    if len(text) < 40:
+        return ""
+    if len(text) <= ARTICLE_EXCERPT_MAX_LENGTH:
+        return text
+    return f"{text[:ARTICLE_EXCERPT_MAX_LENGTH].rsplit(' ', 1)[0]}…"
+
+
+def _source_excerpt_fallback(title: str) -> str:
+    """Keep a source card informative when the publisher supplies no text.
+
+    It is intentionally labelled as a source report, rather than pretending
+    to be an extracted article paragraph or an AI conclusion.
+    """
+
+    subject = title or "this feed item"
+    return f"Source report: {subject}. Open the recorded source to read the full article."
+
+
+def _fetch_article_excerpt(url: str) -> str:
+    """Fetch one publisher page for a faithful opening paragraph.
+
+    RSS sources use this by default. A platform may opt out when a publisher
+    is slow or blocks automated requests. Any failure is deliberately
+    non-fatal: the feed description remains the fallback and polling continues.
+    """
+
+    if not url.startswith(("https://", "http://")):
+        return ""
+
+    cache_key = f"source-article-excerpt:{hashlib.sha256(url.encode()).hexdigest()}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "TrendJackHunter/1.0 (+https://trend-intelligence-wng.onrender.com)"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        parser = _ArticleExcerptParser()
+        parser.feed(response.text)
+        excerpt = ""
+        # Prefer the actual first <article> paragraph. Metadata is a useful
+        # fallback for publishers whose pages do not expose article markup.
+        for candidate in (*parser.paragraphs, *parser.meta_descriptions):
+            excerpt = _short_source_paragraph(candidate)
+            if excerpt:
+                break
+    except (requests.RequestException, ValueError) as exc:
+        logger.info("Could not fetch article excerpt from %s: %s", url, exc)
+        excerpt = ""
+
+    cache.set(cache_key, excerpt, ARTICLE_EXCERPT_CACHE_TTL)
+    return excerpt
 
 
 def _clean_summary(raw_summary: str) -> str:
@@ -71,12 +181,21 @@ class RSSAdapter(TrendSourceAdapter):
             if getattr(entry, "published_parsed", None):
                 published_at = datetime(*entry.published_parsed[:6], tzinfo=dt_timezone.utc)
 
+            feed_summary = _clean_summary(entry.get("summary", ""))
+            source_url = entry.get("link", "")
+            # Every RSS source gets the same treatment. A platform can opt
+            # out only when an operator has a specific publisher reason.
+            article_excerpt = (
+                _fetch_article_excerpt(source_url)
+                if self.config.get("extract_article_excerpt", True)
+                else ""
+            )
             signals.append(
                 RawSignalData(
                     external_id=external_id,
                     title=entry.get("title", "").strip(),
-                    url=entry.get("link", ""),
-                    summary=_clean_summary(entry.get("summary", "")),
+                    url=source_url,
+                    summary=article_excerpt or feed_summary or _source_excerpt_fallback(entry.get("title", "").strip()),
                     published_at=published_at,
                     raw_payload={
                         "author": entry.get("author", ""),

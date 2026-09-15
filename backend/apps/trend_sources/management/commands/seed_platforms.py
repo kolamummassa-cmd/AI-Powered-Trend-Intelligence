@@ -29,7 +29,7 @@ DEFAULT_PLATFORMS = [
         "name": "TechCrunch",
         "slug": "techcrunch-rss",
         "adapter_key": "rss",
-        "config": {"feed_url": "https://techcrunch.com/feed/"},
+        "config": {"feed_url": "https://techcrunch.com/feed/", "extract_article_excerpt": True},
         "poll_interval_minutes": 20,
         "credibility_weight": 80,
         "kuzana_priority_weight": 40,
@@ -39,7 +39,10 @@ DEFAULT_PLATFORMS = [
         "name": "TechCrunch: Startups",
         "slug": "techcrunch-startups-rss",
         "adapter_key": "rss",
-        "config": {"feed_url": "https://techcrunch.com/category/startups/feed/"},
+        "config": {
+            "feed_url": "https://techcrunch.com/category/startups/feed/",
+            "extract_article_excerpt": True,
+        },
         "poll_interval_minutes": 20,
         "credibility_weight": 80,
         "kuzana_priority_weight": 45,
@@ -49,7 +52,10 @@ DEFAULT_PLATFORMS = [
         "name": "TechCrunch: Venture",
         "slug": "techcrunch-venture-rss",
         "adapter_key": "rss",
-        "config": {"feed_url": "https://techcrunch.com/category/venture/feed/"},
+        "config": {
+            "feed_url": "https://techcrunch.com/category/venture/feed/",
+            "extract_article_excerpt": True,
+        },
         "poll_interval_minutes": 20,
         "credibility_weight": 80,
         "kuzana_priority_weight": 45,
@@ -228,10 +234,15 @@ class Command(BaseCommand):
             else:
                 # These are product-owned source rankings, not user-entered
                 # feeds. Keep the priority policy current on every seed while
-                # leaving activation state and query configuration untouched.
+                # only adding missing source-extraction options; do not replace
+                # any existing feed URL or operator configuration.
+                config = dict(platform.config)
+                for key, value in entry["config"].items():
+                    config.setdefault(key, value)
                 Platform.objects.filter(id=platform.id).update(
                     credibility_weight=entry["credibility_weight"],
                     kuzana_priority_weight=entry["kuzana_priority_weight"],
+                    config=config,
                 )
                 self.stdout.write(f"Already exists: {entry['name']}")
 
