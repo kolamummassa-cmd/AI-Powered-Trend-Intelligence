@@ -39,6 +39,19 @@ class TrendListSerializer(serializers.ModelSerializer):
     source_count = serializers.SerializerMethodField()
     source_freshness = serializers.SerializerMethodField()
     signal_areas = serializers.SerializerMethodField()
+    opportunity_headline = serializers.SerializerMethodField()
+    founder_hook = serializers.SerializerMethodField()
+    investor_hook = serializers.SerializerMethodField()
+    creator_hook = serializers.SerializerMethodField()
+    summary = serializers.SerializerMethodField()
+    what_is_happening = serializers.SerializerMethodField()
+    estimated_lifespan = serializers.SerializerMethodField()
+    trend_score = serializers.SerializerMethodField()
+    opportunity_score = serializers.SerializerMethodField()
+    confidence_score = serializers.SerializerMethodField()
+    analyzed_at = serializers.SerializerMethodField()
+    best_audience = serializers.SerializerMethodField()
+    trend_stage = serializers.SerializerMethodField()
 
     class Meta:
         model = Trend
@@ -89,7 +102,70 @@ class TrendListSerializer(serializers.ModelSerializer):
         return "aging"
 
     def get_signal_areas(self, obj) -> list[str]:
-        return detect_signal_areas(obj.title, obj.summary)
+        return detect_signal_areas(obj.title, self._source_summary(obj))
+
+    def _analysis(self, obj):
+        """Return only the requesting user's newest analysis for this trend."""
+        analyses = getattr(obj, "user_analyses", None)
+        if analyses is not None:
+            return analyses[0] if analyses else None
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return None
+        return obj.analyses.filter(created_by=user).first()
+
+    def _source_summary(self, obj) -> str:
+        if obj.source_excerpt:
+            return obj.source_excerpt
+        links = list(obj.source_links.all())
+        if links and getattr(links[0], "raw_signal", None):
+            return links[0].raw_signal.summary or ""
+        return obj.summary
+
+    def _analysis_value(self, obj, field, default=None):
+        analysis = self._analysis(obj)
+        return getattr(analysis, field) if analysis else default
+
+    def get_opportunity_headline(self, obj):
+        return self._analysis_value(obj, "opportunity_headline", "")
+
+    def get_founder_hook(self, obj):
+        return self._analysis_value(obj, "founder_hook", "")
+
+    def get_investor_hook(self, obj):
+        return self._analysis_value(obj, "investor_hook", "")
+
+    def get_creator_hook(self, obj):
+        return self._analysis_value(obj, "creator_hook", "")
+
+    def get_summary(self, obj):
+        return self._source_summary(obj)
+
+    def get_what_is_happening(self, obj):
+        return self._analysis_value(obj, "what_is_happening", "")
+
+    def get_estimated_lifespan(self, obj):
+        return self._analysis_value(obj, "estimated_lifespan", "")
+
+    def get_trend_score(self, obj):
+        return self._analysis_value(obj, "trend_score")
+
+    def get_opportunity_score(self, obj):
+        return self._analysis_value(obj, "opportunity_score")
+
+    def get_confidence_score(self, obj):
+        return self._analysis_value(obj, "confidence_score")
+
+    def get_analyzed_at(self, obj):
+        analysis = self._analysis(obj)
+        return analysis.created_at if analysis else None
+
+    def get_best_audience(self, obj):
+        return self._analysis_value(obj, "best_audience", "")
+
+    def get_trend_stage(self, obj):
+        return self._analysis_value(obj, "trend_stage", "")
 
 
 class TrendDetailSerializer(TrendListSerializer):
@@ -101,6 +177,10 @@ class TrendDetailSerializer(TrendListSerializer):
     # that model's docstring). best_audience is a separate flat field
     # since it's a single derived label, not a per-persona score.
     audience_relevance = serializers.SerializerMethodField()
+    why_spreading = serializers.SerializerMethodField()
+    why_it_matters = serializers.SerializerMethodField()
+    suggested_content_angle = serializers.SerializerMethodField()
+    action_summary = serializers.SerializerMethodField()
 
     class Meta(TrendListSerializer.Meta):
         fields = TrendListSerializer.Meta.fields + (
@@ -121,20 +201,35 @@ class TrendDetailSerializer(TrendListSerializer):
         # Relies on the view prefetching analyses (ordered newest-first
         # by the model's default ordering) so this doesn't cost an
         # extra query per detail request.
-        analyses = list(obj.analyses.all())
-        if not analyses:
+        analysis = self._analysis(obj)
+        if analysis is None:
             return None
-        return TrendAnalysisSerializer(analyses[0]).data
+        return TrendAnalysisSerializer(analysis).data
 
     def get_audience_relevance(self, obj) -> dict | None:
+        analysis = self._analysis(obj)
+        if analysis is None:
+            return None
         scores = {
-            "content_creators": obj.content_creator_score,
-            "founders": obj.founder_score,
-            "investors": obj.investor_score,
+            "content_creators": analysis.content_creator_score,
+            "founders": analysis.founder_score,
+            "investors": analysis.investor_score,
         }
         if all(value is None for value in scores.values()):
             return None
         return scores
+
+    def get_why_spreading(self, obj):
+        return self._analysis_value(obj, "why_spreading", "")
+
+    def get_why_it_matters(self, obj):
+        return self._analysis_value(obj, "why_it_matters", "")
+
+    def get_suggested_content_angle(self, obj):
+        return self._analysis_value(obj, "suggested_content_angle", "")
+
+    def get_action_summary(self, obj):
+        return self._analysis_value(obj, "action_summary", "")
 
 
 class PlatformDistributionSerializer(serializers.Serializer):

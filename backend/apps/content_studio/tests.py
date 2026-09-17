@@ -116,23 +116,36 @@ class TestGenerateBrief:
         assert sent_context.perspective == "investors"
 
     @patch("apps.content_studio.services.get_ai_provider")
-    def test_defaults_to_trend_best_audience_when_perspective_omitted(
+    def test_defaults_to_the_users_own_analysis_audience_when_perspective_omitted(
         self, mock_get_provider, trend
     ):
-        trend.best_audience = "founders"
-        trend.save(update_fields=["best_audience"])
+        from apps.accounts.models import User
+        from apps.trend_analysis.models import TrendAnalysis
+
+        user = User.objects.create_user(email="owner@example.com", password="a-strong-passw0rd1")
+        TrendAnalysis.objects.create(
+            trend=trend,
+            created_by=user,
+            business_relevance="b",
+            founder_relevance="f",
+            entrepreneurship_relevance="e",
+            ai_relevance="a",
+            trend_score=70,
+            opportunity_score=70,
+            confidence_score=70,
+            best_audience="founders",
+            model_used="claude",
+        )
         mock_provider = MagicMock()
         mock_provider.generate_content_brief.return_value = FAKE_BRIEF_RESULT
         mock_get_provider.return_value = mock_provider
 
-        result = generate_brief(trend)
+        result = generate_brief(trend, user=user)
 
         assert result.perspective == "founders"
 
     @patch("apps.content_studio.services.get_ai_provider")
     def test_user_can_choose_a_perspective_other_than_best_audience(self, mock_get_provider, trend):
-        trend.best_audience = "founders"
-        trend.save(update_fields=["best_audience"])
         mock_provider = MagicMock()
         mock_provider.generate_content_brief.return_value = FAKE_BRIEF_RESULT
         mock_get_provider.return_value = mock_provider
@@ -140,7 +153,7 @@ class TestGenerateBrief:
         result = generate_brief(trend, perspective="investors")
 
         assert result.perspective == "investors"
-        assert trend.best_audience == "founders"
+        assert result.perspective == "investors"
 
 
 @pytest.mark.django_db

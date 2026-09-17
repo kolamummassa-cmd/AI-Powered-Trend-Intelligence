@@ -223,8 +223,11 @@ class TestTrendAPI:
         from apps.trend_analysis.models import TrendAnalysis
 
         trend = _ingest(_raw_signal(platform, "1", "Kenya's Fintech Boom"))
+        client = self._authed_client()
+        user = User.objects.get(email="creator@example.com")
         TrendAnalysis.objects.create(
             trend=trend,
+            created_by=user,
             business_relevance="b",
             founder_relevance="f",
             entrepreneurship_relevance="e",
@@ -235,7 +238,6 @@ class TestTrendAPI:
             model_used="claude",
         )
 
-        client = self._authed_client()
         response = client.get(f"/api/v1/trends/{trend.slug}/")
 
         assert response.data["latest_analysis"]["trend_score"] == 72
@@ -250,18 +252,31 @@ class TestTrendAPI:
         assert response.data["latest_analysis"] is None
 
     def test_detail_view_includes_audience_relevance_and_intelligence(self, platform):
-        trend = _ingest(_raw_signal(platform, "1", "Kenya's Fintech Boom"))
-        trend.content_creator_score = 80
-        trend.founder_score = 95
-        trend.investor_score = 60
-        trend.best_audience = "founders"
-        trend.why_it_matters = "It matters a lot."
-        trend.what_is_happening = "Something happened."
-        trend.trend_stage = "growing"
-        trend.suggested_content_angle = "A concrete angle."
-        trend.save()
+        from apps.trend_analysis.models import TrendAnalysis
 
+        trend = _ingest(_raw_signal(platform, "1", "Kenya's Fintech Boom"))
         client = self._authed_client()
+        user = User.objects.get(email="creator@example.com")
+        TrendAnalysis.objects.create(
+            trend=trend,
+            created_by=user,
+            business_relevance="b",
+            founder_relevance="f",
+            entrepreneurship_relevance="e",
+            ai_relevance="a",
+            trend_score=72,
+            opportunity_score=65,
+            confidence_score=80,
+            content_creator_score=80,
+            founder_score=95,
+            investor_score=60,
+            best_audience="founders",
+            why_it_matters="It matters a lot.",
+            what_is_happening="Something happened.",
+            trend_stage="growing",
+            suggested_content_angle="A concrete angle.",
+            model_used="claude",
+        )
         response = client.get(f"/api/v1/trends/{trend.slug}/")
 
         assert response.data["audience_relevance"] == {
@@ -283,53 +298,108 @@ class TestTrendAPI:
 
         assert response.data["audience_relevance"] is None
 
-    def test_filter_by_audience(self, platform):
-        founder_trend = _ingest(_raw_signal(platform, "1", "Founder Relevant"))
-        founder_trend.founder_score = 90
-        founder_trend.investor_score = 20
-        founder_trend.save(update_fields=["founder_score", "investor_score"])
+    def test_analysis_is_private_to_its_creator(self, platform):
+        from apps.trend_analysis.models import TrendAnalysis
 
-        investor_trend = _ingest(_raw_signal(platform, "2", "Investor Relevant"))
-        investor_trend.founder_score = 20
-        investor_trend.investor_score = 90
-        investor_trend.save(update_fields=["founder_score", "investor_score"])
+        trend = _ingest(
+            _raw_signal(platform, "1", "Kenya's Fintech Boom", summary="Original RSS summary.")
+        )
+        owner = User.objects.create_user(email="owner@example.com", password="a-strong-passw0rd1")
+        other = User.objects.create_user(email="other@example.com", password="a-strong-passw0rd1")
+        TrendAnalysis.objects.create(
+            trend=trend,
+            created_by=owner,
+            business_relevance="Owner analysis",
+            founder_relevance="f",
+            entrepreneurship_relevance="e",
+            ai_relevance="a",
+            trend_score=92,
+            opportunity_score=88,
+            confidence_score=87,
+            what_is_happening="Owner's private AI result.",
+            opportunity_headline="Owner's private headline",
+            model_used="claude",
+        )
+        owner_client = APIClient()
+        owner_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(owner).access_token}"
+        )
+        other_client = APIClient()
+        other_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(other).access_token}"
+        )
+
+        owner_response = owner_client.get(f"/api/v1/trends/{trend.slug}/")
+        other_response = other_client.get(f"/api/v1/trends/{trend.slug}/")
+
+        assert owner_response.data["latest_analysis"]["trend_score"] == 92
+        assert owner_response.data["opportunity_headline"] == "Owner's private headline"
+        assert other_response.data["latest_analysis"] is None
+        assert other_response.data["trend_score"] is None
+        assert other_response.data["opportunity_headline"] == ""
+        assert other_response.data["summary"] == "Original RSS summary."
+
+    def test_filter_by_audience(self, platform):
+        from apps.trend_analysis.models import TrendAnalysis
 
         client = self._authed_client()
+        user = User.objects.get(email="creator@example.com")
+        founder_trend = _ingest(_raw_signal(platform, "1", "Founder Relevant"))
+        investor_trend = _ingest(_raw_signal(platform, "2", "Investor Relevant"))
+        for trend, founder_score, investor_score in (
+            (founder_trend, 90, 20),
+            (investor_trend, 20, 90),
+        ):
+            TrendAnalysis.objects.create(
+                trend=trend,
+                created_by=user,
+                business_relevance="b",
+                founder_relevance="f",
+                entrepreneurship_relevance="e",
+                ai_relevance="a",
+                trend_score=70,
+                opportunity_score=70,
+                confidence_score=70,
+                founder_score=founder_score,
+                investor_score=investor_score,
+                model_used="claude",
+            )
         response = client.get("/api/v1/trends/", {"audience": "investors"})
 
         assert response.data["count"] == 1
         assert response.data["results"][0]["title"] == "Investor Relevant"
 
     def test_filter_high_priority(self, platform):
-        high = _ingest(_raw_signal(platform, "1", "High Priority Trend"))
-        high.trend_score = 80
-        high.opportunity_score = 75
-        high.save(update_fields=["trend_score", "opportunity_score"])
-
-        low = _ingest(_raw_signal(platform, "2", "Low Priority Trend"))
-        low.trend_score = 20
-        low.opportunity_score = 10
-        low.save(update_fields=["trend_score", "opportunity_score"])
+        from apps.trend_analysis.models import TrendAnalysis
 
         client = self._authed_client()
+        user = User.objects.get(email="creator@example.com")
+        high = _ingest(_raw_signal(platform, "1", "High Priority Trend"))
+        low = _ingest(_raw_signal(platform, "2", "Low Priority Trend"))
+        for trend, trend_score, opportunity_score in ((high, 80, 75), (low, 20, 10)):
+            TrendAnalysis.objects.create(
+                trend=trend,
+                created_by=user,
+                business_relevance="b",
+                founder_relevance="f",
+                entrepreneurship_relevance="e",
+                ai_relevance="a",
+                trend_score=trend_score,
+                opportunity_score=opportunity_score,
+                confidence_score=70,
+                model_used="claude",
+            )
         response = client.get("/api/v1/trends/", {"high_priority": "true"})
 
         assert response.data["count"] == 1
         assert response.data["results"][0]["title"] == "High Priority Trend"
 
-    def test_ordering_by_trend_score(self, platform):
-        low = _ingest(_raw_signal(platform, "1", "Low Score"))
-        low.trend_score = 10
-        low.save(update_fields=["trend_score"])
-        high = _ingest(_raw_signal(platform, "2", "High Score"))
-        high.trend_score = 90
-        high.save(update_fields=["trend_score"])
-
+    def test_global_score_ordering_is_not_available(self, platform):
+        _ingest(_raw_signal(platform, "1", "Low Score"))
+        _ingest(_raw_signal(platform, "2", "High Score"))
         client = self._authed_client()
         response = client.get("/api/v1/trends/", {"ordering": "-trend_score"})
-
-        titles = [r["title"] for r in response.data["results"]]
-        assert titles == ["High Score", "Low Score"]
+        assert response.status_code == 200
 
 
 @pytest.mark.django_db
@@ -440,15 +510,12 @@ class TestDashboardStats:
         assert response.status_code == 401
 
     def test_counts_and_platform_distribution(self, platform):
+        from apps.trend_analysis.models import TrendAnalysis
+
         other_platform = Platform.objects.create(
             name="Other", slug="other-platform", adapter_key="rss"
         )
         high = _ingest(_raw_signal(platform, "1", "High Priority Trend"))
-        high.trend_score = 80
-        high.opportunity_score = 75
-        high.analyzed_at = timezone.now()
-        high.save(update_fields=["trend_score", "opportunity_score", "analyzed_at"])
-
         _ingest(_raw_signal(other_platform, "2", "Unanalyzed Trend"))
 
         expired = _ingest(_raw_signal(platform, "3", "Old Trend"))
@@ -456,6 +523,19 @@ class TestDashboardStats:
         expired.save(update_fields=["status"])
 
         client = self._authed_client()
+        user = User.objects.get(email="dash@example.com")
+        TrendAnalysis.objects.create(
+            trend=high,
+            created_by=user,
+            business_relevance="b",
+            founder_relevance="f",
+            entrepreneurship_relevance="e",
+            ai_relevance="a",
+            trend_score=80,
+            opportunity_score=75,
+            confidence_score=80,
+            model_used="claude",
+        )
         response = client.get("/api/v1/trends/stats/")
 
         assert response.status_code == 200

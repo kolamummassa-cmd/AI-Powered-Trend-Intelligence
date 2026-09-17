@@ -3,6 +3,7 @@ from ai_providers.base import ContentBriefContext, ContentPieceContext
 from django.db import IntegrityError, transaction
 from django.db.models import Max
 from apps.content_studio.models import ContentBrief, GeneratedContent
+from apps.trend_analysis.models import TrendAnalysis
 from apps.trends.models import Trend
 
 # Which ContentBrief angle backs each content_type's generation prompt.
@@ -15,12 +16,14 @@ ANGLE_FIELD_FOR_CONTENT_TYPE = {
 }
 
 
-def _build_brief_context(trend: Trend, perspective: str = "") -> ContentBriefContext:
-    latest_analysis = next(iter(trend.analyses.all()), None)
+def _build_brief_context(trend: Trend, user=None, perspective: str = "") -> ContentBriefContext:
+    latest_analysis = None
+    if user and user.is_authenticated:
+        latest_analysis = TrendAnalysis.objects.filter(trend=trend, created_by=user).first()
     return ContentBriefContext(
         trend_title=trend.title,
-        trend_summary=trend.summary,
-        why_spreading=trend.why_spreading,
+        trend_summary=trend.source_excerpt or trend.summary,
+        why_spreading=latest_analysis.why_spreading if latest_analysis else "",
         business_relevance=latest_analysis.business_relevance if latest_analysis else "",
         founder_relevance=latest_analysis.founder_relevance if latest_analysis else "",
         entrepreneurship_relevance=(
@@ -28,13 +31,13 @@ def _build_brief_context(trend: Trend, perspective: str = "") -> ContentBriefCon
         ),
         ai_relevance=latest_analysis.ai_relevance if latest_analysis else "",
         perspective=perspective,
-        trend_score=trend.trend_score,
-        opportunity_score=trend.opportunity_score,
-        best_audience=trend.best_audience,
-        why_it_matters=trend.why_it_matters,
-        trend_stage=trend.trend_stage,
-        estimated_lifespan=trend.estimated_lifespan,
-        opportunity_headline=trend.opportunity_headline,
+        trend_score=latest_analysis.trend_score if latest_analysis else None,
+        opportunity_score=latest_analysis.opportunity_score if latest_analysis else None,
+        best_audience=latest_analysis.best_audience if latest_analysis else "",
+        why_it_matters=latest_analysis.why_it_matters if latest_analysis else "",
+        trend_stage=latest_analysis.trend_stage if latest_analysis else "",
+        estimated_lifespan=latest_analysis.estimated_lifespan if latest_analysis else "",
+        opportunity_headline=latest_analysis.opportunity_headline if latest_analysis else "",
     )
 
 
@@ -55,10 +58,13 @@ def generate_brief(
     caller doesn't specify one, so the API layer's default pre-selects
     the most relevant persona while always letting a user override it.
     """
-    perspective = perspective or trend.best_audience or ""
+    own_analysis = None
+    if user and user.is_authenticated:
+        own_analysis = TrendAnalysis.objects.filter(trend=trend, created_by=user).first()
+    perspective = perspective or (own_analysis.best_audience if own_analysis else "") or ""
 
     provider = get_ai_provider(provider_name)
-    context = _build_brief_context(trend, perspective=perspective)
+    context = _build_brief_context(trend, user=user, perspective=perspective)
     result = provider.generate_content_brief(context)
 
     return ContentBrief.objects.create(

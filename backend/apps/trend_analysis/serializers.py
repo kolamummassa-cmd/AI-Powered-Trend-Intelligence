@@ -7,6 +7,10 @@ class TrendAnalysisSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrendAnalysis
         fields = (
+            "summary",
+            "why_spreading",
+            "estimated_lifespan",
+            "action_summary",
             "business_relevance",
             "founder_relevance",
             "entrepreneurship_relevance",

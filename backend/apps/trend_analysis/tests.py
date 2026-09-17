@@ -60,44 +60,41 @@ def trend(db):
 @pytest.mark.django_db
 class TestAnalyzeTrend:
     @patch("apps.trend_analysis.services.get_ai_provider")
-    def test_creates_analysis_and_updates_trend(self, mock_get_provider, trend):
+    def test_creates_private_analysis_without_updating_the_shared_trend(
+        self, mock_get_provider, trend
+    ):
+        from apps.accounts.models import User
+
+        user = User.objects.create_user(email="owner@example.com", password="a-strong-passw0rd1")
         mock_provider = MagicMock()
         mock_provider.generate_trend_analysis.return_value = FAKE_RESULT
         mock_get_provider.return_value = mock_provider
 
-        analysis = analyze_trend(trend)
+        analysis = analyze_trend(trend, user=user)
 
         assert isinstance(analysis, TrendAnalysis)
+        assert analysis.created_by == user
         assert analysis.trend_score == 72
+        assert analysis.summary == "A neutral summary."
+        assert analysis.why_spreading == "It's spreading fast."
         assert TrendAnalysis.objects.filter(trend=trend).count() == 1
 
         trend.refresh_from_db()
-        assert trend.trend_score == 72
-        assert trend.opportunity_score == 65
-        assert trend.confidence_score == 80
-        assert trend.why_spreading == "It's spreading fast."
-        assert trend.estimated_lifespan == "2-3 weeks"
-        assert trend.analyzed_at is not None
-        assert trend.category.name == "Fintech"
+        assert trend.trend_score is None
+        assert trend.opportunity_score is None
+        assert trend.confidence_score is None
+        assert trend.why_spreading == ""
+        assert trend.estimated_lifespan == ""
+        assert trend.analyzed_at is None
+        assert trend.category is None
 
-        # Audience relevance / trend intelligence, denormalized onto
-        # Trend the same way the original three scores already are.
-        assert trend.content_creator_score == 75
-        assert trend.founder_score == 91
-        assert trend.investor_score == 60
-        assert trend.best_audience == "founders"
-        assert trend.why_it_matters == "It matters because of the opportunity it creates."
-        assert trend.what_is_happening == "A major platform just launched a new feature."
+        # The RSS/source record stays unchanged; all intelligence lives on
+        # the creator-owned analysis row.
+        assert trend.content_creator_score is None
+        assert trend.founder_score is None
+        assert trend.investor_score is None
         assert trend.source_excerpt == ""
-        assert trend.summary == "A neutral summary."
-        assert trend.trend_stage == "growing"
-        assert trend.kuzana_relevance_score is None
-        assert trend.kuzana_theme == ""
-        assert trend.suggested_content_angle == "A concrete angle a creator could use right now."
-        assert (
-            trend.opportunity_headline == "Kenya's fintech financing gap is a founder opportunity"
-        )
-        assert trend.founder_hook.startswith("Could your product")
+        assert trend.summary == ""
 
         assert analysis.content_creator_score == 75
         assert analysis.founder_score == 91
@@ -113,14 +110,10 @@ class TestAnalyzeTrend:
         mock_get_provider.return_value = mock_provider
 
         analysis = analyze_trend(trend)
-        trend.refresh_from_db()
-
-        assert trend.opportunity_headline == ""
-        assert trend.founder_hook == ""
         assert analysis.opportunity_headline == ""
 
     @patch("apps.trend_analysis.services.get_ai_provider")
-    def test_does_not_overwrite_an_existing_category(self, mock_get_provider, trend):
+    def test_does_not_change_an_existing_category(self, mock_get_provider, trend):
         existing_category = Category.objects.create(name="Existing Category")
         trend.category = existing_category
         trend.save(update_fields=["category"])
@@ -135,7 +128,7 @@ class TestAnalyzeTrend:
         assert trend.category_id == existing_category.id
 
     @patch("apps.trend_analysis.services.get_ai_provider")
-    def test_replaces_display_summary_but_preserves_source_excerpt(self, mock_get_provider, trend):
+    def test_preserves_shared_source_summary(self, mock_get_provider, trend):
         trend.summary = "An existing human-written summary."
         trend.source_excerpt = "The source's original paragraph."
         trend.save(update_fields=["summary", "source_excerpt"])
@@ -148,7 +141,7 @@ class TestAnalyzeTrend:
         trend.refresh_from_db()
 
         assert trend.source_excerpt == "The source's original paragraph."
-        assert trend.summary == "A neutral summary."
+        assert trend.summary == "An existing human-written summary."
 
     @patch("apps.trend_analysis.services.get_ai_provider")
     def test_reanalysis_adds_a_new_row_rather_than_replacing(self, mock_get_provider, trend):
@@ -176,49 +169,19 @@ HIGH_PRIORITY_RESULT = TrendAnalysisResult(
 
 
 @pytest.mark.django_db
-class TestHighValueNotificationTrigger:
+class TestPrivateAnalysisNotifications:
     @patch("apps.trend_analysis.services.get_ai_provider")
-    def test_notifies_users_when_trend_newly_crosses_high_priority(self, mock_get_provider, trend):
+    def test_does_not_notify_other_users_about_a_private_analysis(self, mock_get_provider, trend):
         from apps.accounts.models import User
         from apps.notifications.models import Notification, NotificationType
 
-        user = User.objects.create_user(email="watcher@example.com", password="a-strong-pw1")
-        mock_provider = MagicMock()
-        mock_provider.generate_trend_analysis.return_value = HIGH_PRIORITY_RESULT
-        mock_get_provider.return_value = mock_provider
-
-        analyze_trend(trend)
-
-        assert Notification.objects.filter(
-            user=user, type=NotificationType.NEW_HIGH_VALUE_TREND
-        ).exists()
-
-    @patch("apps.trend_analysis.services.get_ai_provider")
-    def test_does_not_renotify_on_re_analysis_of_an_already_high_priority_trend(
-        self, mock_get_provider, trend
-    ):
-        from apps.accounts.models import User
-        from apps.notifications.models import Notification, NotificationType
-
+        owner = User.objects.create_user(email="owner@example.com", password="a-strong-pw1")
         User.objects.create_user(email="watcher@example.com", password="a-strong-pw1")
         mock_provider = MagicMock()
         mock_provider.generate_trend_analysis.return_value = HIGH_PRIORITY_RESULT
         mock_get_provider.return_value = mock_provider
 
-        analyze_trend(trend)
-        analyze_trend(trend)
-
-        assert Notification.objects.filter(type=NotificationType.NEW_HIGH_VALUE_TREND).count() == 1
-
-    @patch("apps.trend_analysis.services.get_ai_provider")
-    def test_does_not_notify_for_a_low_priority_trend(self, mock_get_provider, trend):
-        from apps.notifications.models import Notification, NotificationType
-
-        mock_provider = MagicMock()
-        mock_provider.generate_trend_analysis.return_value = FAKE_RESULT  # below thresholds
-        mock_get_provider.return_value = mock_provider
-
-        analyze_trend(trend)
+        analyze_trend(trend, user=owner)
 
         assert not Notification.objects.filter(type=NotificationType.NEW_HIGH_VALUE_TREND).exists()
 

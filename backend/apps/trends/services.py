@@ -121,7 +121,7 @@ def ingest_raw_signal(raw_signal: RawTrendSignal) -> tuple[Trend, bool]:
     return trend, is_new_trend
 
 
-def get_dashboard_stats() -> dict:
+def get_dashboard_stats(user=None) -> dict:
     """Aggregate counters for the Phase 4 dashboard. Kept as a single
     service function (rather than inline in the view) so the same
     numbers can later be reused by the analytics screen or a
@@ -132,7 +132,8 @@ def get_dashboard_stats() -> dict:
     dashboard page load, so a short cache window trades a small amount
     of staleness for a lot fewer repeated aggregate queries.
     """
-    cached = cache.get(DASHBOARD_STATS_CACHE_KEY)
+    cache_key = f"{DASHBOARD_STATS_CACHE_KEY}:user:{getattr(user, 'id', 'anonymous')}"
+    cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
@@ -147,17 +148,24 @@ def get_dashboard_stats() -> dict:
         .values("slug", "name", "trend_count", "kuzana_priority_weight")
     )
 
+    own_analyses = Trend.objects.none()
+    if user and user.is_authenticated:
+        own_analyses = Trend.objects.filter(analyses__created_by=user)
+
     stats = {
         "total_trends": trends.count(),
         "active_trends": trends.filter(status=TrendStatus.ACTIVE).count(),
         "expiring_trends": trends.filter(status=TrendStatus.EXPIRING).count(),
         "new_today": trends.filter(first_detected_at__gte=today_start).count(),
-        "high_priority_trends": trends.filter(
-            trend_score__gte=HIGH_PRIORITY_TREND_SCORE,
-            opportunity_score__gte=HIGH_PRIORITY_OPPORTUNITY_SCORE,
-        ).count(),
-        "analyzed_trends": trends.filter(analyzed_at__isnull=False).count(),
+        "high_priority_trends": own_analyses.filter(
+            analyses__created_by=user,
+            analyses__trend_score__gte=HIGH_PRIORITY_TREND_SCORE,
+            analyses__opportunity_score__gte=HIGH_PRIORITY_OPPORTUNITY_SCORE,
+        )
+        .distinct()
+        .count(),
+        "analyzed_trends": own_analyses.distinct().count(),
         "platform_distribution": list(platform_distribution),
     }
-    cache.set(DASHBOARD_STATS_CACHE_KEY, stats, DASHBOARD_STATS_CACHE_TTL)
+    cache.set(cache_key, stats, DASHBOARD_STATS_CACHE_TTL)
     return stats

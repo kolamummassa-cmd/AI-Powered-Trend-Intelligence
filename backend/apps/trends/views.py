@@ -1,6 +1,6 @@
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, permissions, status
@@ -8,7 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.trends.filters import AUDIENCE_RELEVANCE_THRESHOLD, TrendFilter
+from apps.trends.filters import TrendFilter
 from apps.core.ai_jobs import enqueue_ai_job
 from apps.core.models import AIJob
 from apps.core.permissions import IsVerifiedUser, enforce_ai_generation_quota
@@ -20,7 +20,7 @@ from apps.trends.serializers import (
     TrendDetailSerializer,
     TrendListSerializer,
 )
-from apps.trend_analysis.models import TrendAnalysisFeedback
+from apps.trend_analysis.models import TrendAnalysis, TrendAnalysisFeedback
 from apps.trend_analysis.serializers import TrendAnalysisFeedbackSerializer
 from apps.trends.services import get_dashboard_stats
 
@@ -34,36 +34,24 @@ class TrendListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TrendFilter
-    search_fields = ["title", "summary"]
+    search_fields = ["title", "source_excerpt"]
     ordering_fields = [
         "first_detected_at",
         "last_seen_at",
         "title",
-        "trend_score",
-        "opportunity_score",
     ]
     ordering = ["-last_seen_at"]
     serializer_class = TrendListSerializer
 
     def get_queryset(self):
-        queryset = Trend.objects.select_related("category").prefetch_related(
-            "source_links__platform"
+        user_analyses = TrendAnalysis.objects.filter(created_by=self.request.user).order_by(
+            "-created_at"
         )
-        # The point of trend collection is surfacing meaningful
-        # opportunities, not every article that got ingested — once a
-        # trend has been analyzed, hide it from the default feed unless
-        # it clears the relevance bar for at least one audience. Trends
-        # still awaiting analysis stay visible (nothing to filter on
-        # yet), and ?include_low_relevance=true opts back into the full
-        # list for admin/debugging use.
-        if self.request.query_params.get("include_low_relevance") != "true":
-            queryset = queryset.filter(
-                Q(analyzed_at__isnull=True)
-                | Q(content_creator_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                | Q(founder_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                | Q(investor_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-            )
-        return queryset
+        return Trend.objects.select_related("category").prefetch_related(
+            "source_links__platform",
+            "source_links__raw_signal",
+            Prefetch("analyses", queryset=user_analyses, to_attr="user_analyses"),
+        )
 
 
 class PublicTrendingTickerView(APIView):
@@ -83,13 +71,7 @@ class PublicTrendingTickerView(APIView):
         titles = cache.get(cache_key)
         if titles is None:
             titles = list(
-                Trend.objects.filter(
-                    Q(content_creator_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                    | Q(founder_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                    | Q(investor_score__gte=AUDIENCE_RELEVANCE_THRESHOLD)
-                )
-                .order_by("-trend_score", "-last_seen_at")
-                .values_list("title", flat=True)[:20]
+                Trend.objects.order_by("-last_seen_at").values_list("title", flat=True)[:20]
             )
             cache.set(cache_key, titles, timeout=60)
         return Response({"titles": titles})
@@ -101,8 +83,13 @@ class TrendDetailView(generics.RetrieveAPIView):
     lookup_field = "slug"
 
     def get_queryset(self):
+        user_analyses = TrendAnalysis.objects.filter(created_by=self.request.user).order_by(
+            "-created_at"
+        )
         return Trend.objects.select_related("category").prefetch_related(
-            "source_links__platform", "source_links__raw_signal", "analyses"
+            "source_links__platform",
+            "source_links__raw_signal",
+            Prefetch("analyses", queryset=user_analyses, to_attr="user_analyses"),
         )
 
 
@@ -138,8 +125,8 @@ class TrendAnalysisFeedbackView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, slug):
-        trend = get_object_or_404(Trend.objects.prefetch_related("analyses"), slug=slug)
-        analysis = next(iter(trend.analyses.all()), None)
+        trend = get_object_or_404(Trend, slug=slug)
+        analysis = TrendAnalysis.objects.filter(trend=trend, created_by=request.user).first()
         if analysis is None:
             return Response(
                 {"detail": "This trend has not been analyzed yet."}, status=status.HTTP_409_CONFLICT
@@ -169,5 +156,5 @@ class DashboardStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        serializer = DashboardStatsSerializer(get_dashboard_stats())
+        serializer = DashboardStatsSerializer(get_dashboard_stats(request.user))
         return Response(serializer.data)

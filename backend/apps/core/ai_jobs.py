@@ -71,7 +71,7 @@ def run_ai_job(self, job_id):
         subject, _ = _job_objects(job)
         user = job.created_by
         if job.job_type == AIJob.JobType.REANALYZE_TREND:
-            analysis = analyze_trend(subject)
+            analysis = analyze_trend(subject, user=user)
             result = {
                 "trend_id": str(subject.id),
                 "trend_slug": subject.slug,

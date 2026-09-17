@@ -6,19 +6,25 @@ from apps.trends.models import AudienceType, Trend, TrendStage
 
 
 class TrendAnalysis(BaseModel):
-    """One AI analysis run for a Trend. Deliberately a plain FK (not
-    OneToOne) so re-analyzing a trend never destroys the previous
-    result — useful both for improving prompts over time without
-    losing history, and for defensibility ("why did this score
-    change?") when this ends up in front of an investor or a user.
+    """One private AI analysis run for one user's view of a shared trend.
 
-    Trend.trend_score/opportunity_score/confidence_score (and, as of
-    the audience-relevance/intelligence fields below, everything else
-    here) always reflect the *latest* row here; this table is the full
-    history.
+    A Trend is the shared RSS/source signal. Generated analysis belongs to
+    its creator, so a user's work never changes the source card or appears in
+    another account's feed.
     """
 
     trend = models.ForeignKey(Trend, on_delete=models.CASCADE, related_name="analyses")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="trend_analyses",
+    )
+
+    summary = models.TextField(default="")
+    why_spreading = models.TextField(default="")
+    estimated_lifespan = models.CharField(max_length=120, blank=True, default="")
+    action_summary = models.TextField(default="")
 
     business_relevance = models.TextField()
     founder_relevance = models.TextField()
