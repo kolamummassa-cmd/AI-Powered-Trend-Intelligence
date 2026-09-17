@@ -1,0 +1,4 @@
+trendjackhunter.tech, www.trendjackhunter.tech {
+    encode zstd gzip
+    reverse_proxy app:8080
+}

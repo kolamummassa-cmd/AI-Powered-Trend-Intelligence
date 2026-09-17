@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+!.env.production.example
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/node_modules/
+**/.next/
+backend/media/
+backend/staticfiles/
+*.log
