@@ -141,7 +141,9 @@ class TrendAnalysisFeedbackView(APIView):
         trend = get_object_or_404(Trend.objects.prefetch_related("analyses"), slug=slug)
         analysis = next(iter(trend.analyses.all()), None)
         if analysis is None:
-            return Response({"detail": "This trend has not been analyzed yet."}, status=status.HTTP_409_CONFLICT)
+            return Response(
+                {"detail": "This trend has not been analyzed yet."}, status=status.HTTP_409_CONFLICT
+            )
         serializer = TrendAnalysisFeedbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         feedback, _ = TrendAnalysisFeedback.objects.update_or_create(
@@ -152,7 +154,9 @@ class TrendAnalysisFeedbackView(APIView):
                 "comment": serializer.validated_data.get("comment", ""),
             },
         )
-        return Response(TrendAnalysisFeedbackSerializer(feedback).data, status=status.HTTP_201_CREATED)
+        return Response(
+            TrendAnalysisFeedbackSerializer(feedback).data, status=status.HTTP_201_CREATED
+        )
 
 
 class DashboardStatsView(APIView):

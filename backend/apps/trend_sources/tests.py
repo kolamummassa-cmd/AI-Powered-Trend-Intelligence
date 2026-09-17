@@ -79,7 +79,7 @@ class TestRSSAdapter:
             text=(
                 '<html><head><meta property="og:description" '
                 'content="Cornelis creates networking technology for AI chips and raised $205 million." />'
-                '</head></html>'
+                "</head></html>"
             ),
             raise_for_status=lambda: None,
         )
@@ -88,7 +88,10 @@ class TestRSSAdapter:
             {"feed_url": "https://example.com/feed", "extract_article_excerpt": True}
         ).fetch_signals()
 
-        assert signals[0].summary == "Cornelis creates networking technology for AI chips and raised $205 million."
+        assert (
+            signals[0].summary
+            == "Cornelis creates networking technology for AI chips and raised $205 million."
+        )
 
     @patch("apps.trend_sources.adapters.requests.get", side_effect=requests.Timeout)
     @patch("apps.trend_sources.adapters.feedparser.parse")

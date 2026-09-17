@@ -59,7 +59,10 @@ class RefineContentView(APIView):
         job = AIJob.objects.create(
             created_by=request.user,
             job_type=AIJob.JobType.REFINE_CONTENT,
-            payload={"content_id": str(content.id), "instruction": req.validated_data["instruction"]},
+            payload={
+                "content_id": str(content.id),
+                "instruction": req.validated_data["instruction"],
+            },
         )
         transaction.on_commit(lambda: enqueue_ai_job(job))
         return Response(AIJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)

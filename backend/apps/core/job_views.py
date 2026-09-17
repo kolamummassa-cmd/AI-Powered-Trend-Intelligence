@@ -23,7 +23,9 @@ class AIJobRetryView(APIView):
     def post(self, request, pk):
         job = get_object_or_404(AIJob, id=pk, created_by=request.user)
         if job.status != AIJob.Status.FAILED:
-            return Response({"detail": "Only failed jobs can be retried."}, status=status.HTTP_409_CONFLICT)
+            return Response(
+                {"detail": "Only failed jobs can be retried."}, status=status.HTTP_409_CONFLICT
+            )
         job.status = AIJob.Status.QUEUED
         job.error_message = ""
         job.result = {}

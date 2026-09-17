@@ -50,7 +50,9 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         # are held outside the User table until their code is accepted, while
         # the data migration marks pre-code-flow accounts as verified.
         if not self.user.is_verified:
-            raise AuthenticationFailed("This account is not ready. Please complete registration first.")
+            raise AuthenticationFailed(
+                "This account is not ready. Please complete registration first."
+            )
         data["email"] = self.user.email
         data["is_verified"] = self.user.is_verified
         return data

@@ -18,7 +18,14 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Trend)
 class TrendAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "status", "retention_required", "first_detected_at", "last_seen_at")
+    list_display = (
+        "title",
+        "category",
+        "status",
+        "retention_required",
+        "first_detected_at",
+        "last_seen_at",
+    )
     list_filter = ("status", "category", "retention_required")
     search_fields = ("title", "summary")
     readonly_fields = ("slug", "dedup_key")

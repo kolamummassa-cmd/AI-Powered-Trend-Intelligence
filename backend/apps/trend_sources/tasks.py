@@ -76,8 +76,16 @@ def poll_platform(self, platform_id: str):
             raw_signal.summary = signal.summary
             raw_signal.save(update_fields=["summary"])
 
-            link = TrendSourceLink.objects.select_related("trend").filter(raw_signal=raw_signal).first()
-            if link and not link.trend.analyzed_at and link.trend.source_excerpt in {"", previous_summary}:
+            link = (
+                TrendSourceLink.objects.select_related("trend")
+                .filter(raw_signal=raw_signal)
+                .first()
+            )
+            if (
+                link
+                and not link.trend.analyzed_at
+                and link.trend.source_excerpt in {"", previous_summary}
+            ):
                 link.trend.source_excerpt = signal.summary
                 link.trend.summary = signal.summary
                 link.trend.save(update_fields=["source_excerpt", "summary"])

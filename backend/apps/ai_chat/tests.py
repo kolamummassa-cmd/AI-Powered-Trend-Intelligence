@@ -140,7 +140,6 @@ class TestAIChatAPI:
         assert response.status_code == 202
         assert response.data["job_type"] == AIJob.JobType.REFINE_CONTENT
 
-
     @patch("apps.ai_chat.views.enqueue_ai_job")
     def test_convert_endpoint_queues_job(self, mock_enqueue, content, user):
 

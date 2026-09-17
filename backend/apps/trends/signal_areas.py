@@ -15,29 +15,62 @@ SIGNAL_AREAS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "Funding & investment",
         (
-            "funding", "funded", "raises", "raised", "investment", "investor", "venture",
-            " vc ", "acquisition", "acquires", "acquired", "exit",
+            "funding",
+            "funded",
+            "raises",
+            "raised",
+            "investment",
+            "investor",
+            "venture",
+            " vc ",
+            "acquisition",
+            "acquires",
+            "acquired",
+            "exit",
         ),
     ),
     (
         "Fintech & money",
         (
-            "fintech", "payment", "payments", "banking", "bank", "wallet", "credit",
-            "lending", "loan", "money", "remittance",
+            "fintech",
+            "payment",
+            "payments",
+            "banking",
+            "bank",
+            "wallet",
+            "credit",
+            "lending",
+            "loan",
+            "money",
+            "remittance",
         ),
     ),
     (
         "AI & technology",
         (
-            "artificial intelligence", " ai ", "machine learning", "llm", "software", "saas",
-            "chip", "cloud", "technology", "tech",
+            "artificial intelligence",
+            " ai ",
+            "machine learning",
+            "llm",
+            "software",
+            "saas",
+            "chip",
+            "cloud",
+            "technology",
+            "tech",
         ),
     ),
     (
         "Creator economy & marketing",
         (
-            "creator", "content", "youtube", "tiktok", "influencer", "marketing",
-            "advertising", "audience",
+            "creator",
+            "content",
+            "youtube",
+            "tiktok",
+            "influencer",
+            "marketing",
+            "advertising",
+            "audience",
         ),
     ),
     (
@@ -66,5 +99,9 @@ def detect_signal_areas(title: str, summary: str = "") -> list[str]:
     def contains_keyword(keyword: str) -> bool:
         return bool(re.search(rf"(?<!\w){re.escape(keyword.strip())}(?!\w)", text))
 
-    matches = [label for label, keywords in SIGNAL_AREAS if any(contains_keyword(word) for word in keywords)]
+    matches = [
+        label
+        for label, keywords in SIGNAL_AREAS
+        if any(contains_keyword(word) for word in keywords)
+    ]
     return matches[:2] or ["Business & markets"]

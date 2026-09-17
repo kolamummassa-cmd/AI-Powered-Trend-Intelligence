@@ -43,10 +43,14 @@ def _find_matching_trend(key: str):
     exact = Trend.objects.filter(active_dedup_key=key).first()
     if exact:
         return exact
-    candidates = Trend.objects.exclude(status=TrendStatus.EXPIRED).only(
-        "id", "dedup_key", "last_seen_at"
-    ).order_by("-last_seen_at")[:250]
-    return next((trend for trend in candidates if _title_similarity(key, trend.dedup_key) >= 0.72), None)
+    candidates = (
+        Trend.objects.exclude(status=TrendStatus.EXPIRED)
+        .only("id", "dedup_key", "last_seen_at")
+        .order_by("-last_seen_at")[:250]
+    )
+    return next(
+        (trend for trend in candidates if _title_similarity(key, trend.dedup_key) >= 0.72), None
+    )
 
 
 def _source_relevance(trend_title: str, signal_title: str) -> int:
@@ -75,7 +79,9 @@ def ingest_raw_signal(raw_signal: RawTrendSignal) -> tuple[Trend, bool]:
     with transaction.atomic():
         # Recheck while locked: a Celery retry or another worker may have
         # connected this signal after the cheap preflight above.
-        existing_link = TrendSourceLink.objects.select_related("trend").filter(raw_signal=raw_signal).first()
+        existing_link = (
+            TrendSourceLink.objects.select_related("trend").filter(raw_signal=raw_signal).first()
+        )
         if existing_link:
             return existing_link.trend, False
 

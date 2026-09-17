@@ -45,7 +45,10 @@ def _job_objects(job):
         return Trend.objects.get(id=payload["trend_id"]), None
     if job.job_type == AIJob.JobType.GENERATE_CONTENT:
         return ContentBrief.objects.select_related("trend").get(id=payload["brief_id"]), None
-    return GeneratedContent.objects.select_related("brief__trend").get(id=payload["content_id"]), None
+    return (
+        GeneratedContent.objects.select_related("brief__trend").get(id=payload["content_id"]),
+        None,
+    )
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=30)
@@ -69,9 +72,15 @@ def run_ai_job(self, job_id):
         user = job.created_by
         if job.job_type == AIJob.JobType.REANALYZE_TREND:
             analysis = analyze_trend(subject)
-            result = {"trend_id": str(subject.id), "trend_slug": subject.slug, "analysis_id": str(analysis.id)}
+            result = {
+                "trend_id": str(subject.id),
+                "trend_slug": subject.slug,
+                "analysis_id": str(analysis.id),
+            }
         elif job.job_type == AIJob.JobType.GENERATE_BRIEF:
-            brief = generate_brief(subject, user=user, perspective=job.payload.get("perspective", ""))
+            brief = generate_brief(
+                subject, user=user, perspective=job.payload.get("perspective", "")
+            )
             result = {"brief_id": str(brief.id), "trend_slug": subject.slug}
         elif job.job_type == AIJob.JobType.GENERATE_CONTENT:
             content = generate_content(subject, job.payload["content_type"], user=user)
@@ -89,12 +98,17 @@ def run_ai_job(self, job_id):
             job.status = AIJob.Status.QUEUED
             job.error_message = "Temporary provider issue; retrying automatically."
             job.save(update_fields=["status", "error_message", "updated_at"])
-            raise self.retry(exc=exc, countdown=min(30 * (2 ** self.request.retries), 300))
+            raise self.retry(exc=exc, countdown=min(30 * (2**self.request.retries), 300))
         job.status = AIJob.Status.FAILED
         job.error_message = str(exc)
         job.save(update_fields=["status", "error_message", "updated_at"])
         return {"job": str(job.id), "error": str(exc)}
-    except (Trend.DoesNotExist, ContentBrief.DoesNotExist, GeneratedContent.DoesNotExist, KeyError) as exc:
+    except (
+        Trend.DoesNotExist,
+        ContentBrief.DoesNotExist,
+        GeneratedContent.DoesNotExist,
+        KeyError,
+    ) as exc:
         job.status = AIJob.Status.FAILED
         job.error_message = "The source item for this job is no longer available."
         job.save(update_fields=["status", "error_message", "updated_at"])

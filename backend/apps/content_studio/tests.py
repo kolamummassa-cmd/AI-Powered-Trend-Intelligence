@@ -200,7 +200,9 @@ class TestGenerateContent:
         assert call_context.content_type == "post"
 
     @patch("apps.content_studio.services.get_ai_provider")
-    def test_content_angle_is_combined_with_the_format_specific_angle(self, mock_get_provider, trend):
+    def test_content_angle_is_combined_with_the_format_specific_angle(
+        self, mock_get_provider, trend
+    ):
         perspective_brief = ContentBrief.objects.create(
             trend=trend,
             business_angle="Business angle.",
@@ -362,7 +364,6 @@ class TestContentBriefAPI:
 
         assert AIJob.objects.get(created_by=user).payload["perspective"] == "investors"
 
-
     def test_detail_includes_generated_content(self, brief, user):
         GeneratedContent.objects.create(
             brief=brief, created_by=user, content_type="hook", body="A hook", version=1
@@ -397,7 +398,6 @@ class TestContentBriefAPI:
         response = client.post("/api/v1/content/briefs/", {"trend_slug": trend.slug})
 
         assert response.status_code == 403
-
 
 
 @pytest.mark.django_db

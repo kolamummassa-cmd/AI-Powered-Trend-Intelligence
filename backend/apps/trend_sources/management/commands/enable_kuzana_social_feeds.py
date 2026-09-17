@@ -40,7 +40,5 @@ class Command(BaseCommand):
                 + ". Run `manage.py seed_platforms` first."
             )
 
-        updated = Platform.objects.filter(slug__in=expected, is_active=False).update(
-            is_active=True
-        )
+        updated = Platform.objects.filter(slug__in=expected, is_active=False).update(is_active=True)
         self.stdout.write(self.style.SUCCESS(f"Enabled {updated} TrendJack Hunter social feed(s)."))

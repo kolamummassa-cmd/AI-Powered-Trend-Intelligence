@@ -53,7 +53,10 @@ class ContentBriefListCreateView(generics.ListCreateAPIView):
         job = AIJob.objects.create(
             created_by=request.user,
             job_type=AIJob.JobType.GENERATE_BRIEF,
-            payload={"trend_id": str(trend.id), "perspective": req.validated_data.get("perspective", "")},
+            payload={
+                "trend_id": str(trend.id),
+                "perspective": req.validated_data.get("perspective", ""),
+            },
         )
         transaction.on_commit(lambda: enqueue_ai_job(job))
         return Response(AIJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
@@ -88,13 +91,10 @@ class GeneratedContentListCreateView(generics.ListCreateAPIView):
     serializer_class = GeneratedContentSerializer
 
     def get_queryset(self):
-        queryset = (
-            GeneratedContent.objects.filter(
-                created_by=self.request.user,
-                content_type__in=ContentType.values,
-            )
-            .select_related("brief__trend")
-        )
+        queryset = GeneratedContent.objects.filter(
+            created_by=self.request.user,
+            content_type__in=ContentType.values,
+        ).select_related("brief__trend")
         brief_id = self.request.query_params.get("brief")
         if brief_id:
             queryset = queryset.filter(brief_id=brief_id)
@@ -130,10 +130,7 @@ class GeneratedContentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = GeneratedContentSerializer
 
     def get_queryset(self):
-        return (
-            GeneratedContent.objects.filter(
-                created_by=self.request.user,
-                content_type__in=ContentType.values,
-            )
-            .select_related("brief__trend")
-        )
+        return GeneratedContent.objects.filter(
+            created_by=self.request.user,
+            content_type__in=ContentType.values,
+        ).select_related("brief__trend")

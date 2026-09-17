@@ -121,7 +121,9 @@ def _fetch_article_excerpt(url: str) -> str:
     try:
         response = requests.get(
             url,
-            headers={"User-Agent": "TrendJackHunter/1.0 (+https://trend-intelligence-wng.onrender.com)"},
+            headers={
+                "User-Agent": "TrendJackHunter/1.0 (+https://trend-intelligence-wng.onrender.com)"
+            },
             timeout=8,
         )
         response.raise_for_status()
@@ -195,7 +197,9 @@ class RSSAdapter(TrendSourceAdapter):
                     external_id=external_id,
                     title=entry.get("title", "").strip(),
                     url=source_url,
-                    summary=article_excerpt or feed_summary or _source_excerpt_fallback(entry.get("title", "").strip()),
+                    summary=article_excerpt
+                    or feed_summary
+                    or _source_excerpt_fallback(entry.get("title", "").strip()),
                     published_at=published_at,
                     raw_payload={
                         "author": entry.get("author", ""),

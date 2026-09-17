@@ -150,7 +150,9 @@ class Trend(BaseModel):
     # Kenyan founders, entrepreneurs, and business-minded creators.
     kuzana_relevance_score = models.PositiveSmallIntegerField(null=True, blank=True, db_index=True)
     kuzana_relevance_reason = models.TextField(blank=True, default="")
-    kuzana_theme = models.CharField(max_length=30, choices=KuzanaTheme.choices, blank=True, default="")
+    kuzana_theme = models.CharField(
+        max_length=30, choices=KuzanaTheme.choices, blank=True, default=""
+    )
     kuzana_geo_relevance = models.CharField(
         max_length=20, choices=KuzanaGeoRelevance.choices, blank=True, default=""
     )
