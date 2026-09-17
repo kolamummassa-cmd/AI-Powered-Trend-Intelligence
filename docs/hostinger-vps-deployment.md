@@ -36,3 +36,25 @@ Inspect a service without exposing secrets:
 docker compose ps
 docker compose logs --tail=100 app
 ```
+
+## Google sign-in and password resets
+
+Password resets are already enabled. They use the same Resend sender as email
+verification, so keep `RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`, and
+`FRONTEND_URL=https://trendjackhunter.tech` set in the VPS `.env`.
+
+To enable Google sign-in, create a **Web application** OAuth client in Google
+Cloud and add these Authorized JavaScript origins:
+
+- `https://trendjackhunter.tech`
+- `https://www.trendjackhunter.tech`
+
+Copy its client ID into `GOOGLE_OAUTH_CLIENT_ID` in the VPS `.env`, then
+rebuild the app so Next.js can include the public button configuration:
+
+```bash
+docker compose up -d --build app
+```
+
+The client ID is safe to place in `.env`; do not add a Google client secret to
+the application or share any account credentials.

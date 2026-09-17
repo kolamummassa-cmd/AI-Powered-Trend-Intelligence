@@ -7,10 +7,13 @@
 
 FROM python:3.12-slim
 
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
-    NEXT_PUBLIC_API_URL=/api/v1
+    NEXT_PUBLIC_API_URL=/api/v1 \
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 
 # nginx: reverse proxy in front of both apps.
 # gettext-base: provides envsubst, used to inject Render's $PORT into the
@@ -47,9 +50,9 @@ RUN cd frontend && npm ci
 COPY backend/ backend/
 COPY frontend/ frontend/
 
-# Bakes NEXT_PUBLIC_API_URL=/api/v1 into the client bundle. This works
-# because nginx puts the frontend and the API on the same origin — a
-# relative path is all the browser ever needs.
+# Bakes public browser configuration into the client bundle. The API is on
+# the same origin, while Google's public OAuth client ID lets the login pages
+# render the Google Identity Services button.
 RUN cd frontend && npm run build
 
 # --- nginx + process orchestration ---
