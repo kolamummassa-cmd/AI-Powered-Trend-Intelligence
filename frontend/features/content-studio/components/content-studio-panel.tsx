@@ -37,7 +37,7 @@ function latestByType(pieces: GeneratedContent[], contentType: ContentType) {
 // styled the same way is the smallest addition that stays inside the
 // existing design system rather than introducing a new component.
 const SELECT_CLASSES =
-  "h-11 rounded-lg border border-input bg-background px-4 py-2.5 text-sm " +
+  "h-11 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary";
 
 export function ContentStudioPanel({
@@ -77,7 +77,7 @@ export function ContentStudioPanel({
   }
 
   const perspectiveSelector = (
-    <div className="flex flex-col gap-2 sm:max-w-md">
+    <div className="flex w-full flex-col gap-2 sm:max-w-md">
       <label htmlFor="content-perspective" className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
         Content Perspective
       </label>
@@ -98,17 +98,18 @@ export function ContentStudioPanel({
 
   return (
     <Card className="h-full rounded-2xl shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-baseline gap-3">
-            <CardTitle className="text-xl">Content Studio</CardTitle>
+      <CardHeader className="px-4 py-5 sm:p-6">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <CardTitle className="break-words text-lg sm:text-xl">Content Studio</CardTitle>
             <span className="text-xs font-medium tracking-[0.2em] text-muted-foreground">02</span>
           </div>
           {brief && (
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
                 disabled={createBrief.isPending || jobIsActive}
               >
@@ -118,6 +119,7 @@ export function ContentStudioPanel({
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   if (window.confirm("Delete this brief and all of its generated content? This removes it from your library.")) {
                     deleteBrief.mutate(brief.id);
@@ -136,7 +138,7 @@ export function ContentStudioPanel({
           Choose who this content is for. You can change the perspective before generating.
         </p>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-5 px-4 pb-5 sm:px-6 sm:pb-6">
         {job && (
           <div className="rounded-md border border-border bg-muted/50 p-3 text-sm" role="status">
             {job.status === "queued" && `Your ${jobLabel} is queued.`}
@@ -177,7 +179,7 @@ export function ContentStudioPanel({
             )}
             <div className="border-t border-border pt-5">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">How it works</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <WorkflowStep number="1" title="Collect the signal" description="The source feed is recorded and linked as evidence." />
                 <WorkflowStep number="2" title="Assess the opportunity" description="TrendJack Hunter scores relevance, timing, and confidence." />
                 <WorkflowStep number="3" title="Draft the brief" description="Generate a practical angle from your chosen perspective." />
@@ -219,17 +221,20 @@ export function ContentStudioPanel({
                   (createContent.isPending && createContent.variables?.contentType === contentType) || jobIsActive;
 
                 return (
-                  <div key={contentType} className="rounded-md border border-border p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div>
+                  <div key={contentType} className="min-w-0 rounded-md border border-border p-3">
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <p className="text-sm font-medium">{CONTENT_TYPE_LABELS[contentType]}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{CONTENT_TYPE_DESCRIPTIONS[contentType]}</p>
+                        <p className="mt-1 break-words text-xs text-muted-foreground">
+                          {CONTENT_TYPE_DESCRIPTIONS[contentType]}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
                         {latest && (
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() =>
                               setSaved.mutate({
                                 contentId: latest.id,
@@ -246,6 +251,7 @@ export function ContentStudioPanel({
                         <Button
                           variant="outline"
                           size="sm"
+                          className="flex-1 sm:flex-none"
                           onClick={() =>
                             createContent.mutate({ briefId: brief.id, contentType }, { onSuccess: (nextJob) => setJobId(nextJob.id) })
                           }
@@ -257,7 +263,7 @@ export function ContentStudioPanel({
                       </div>
                     </div>
                     {latest ? (
-                      <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                      <p className="break-words whitespace-pre-wrap text-sm text-muted-foreground">
                         {latest.body}
                       </p>
                   ) : (
