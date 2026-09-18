@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 from apps.core.models import BaseModel
 from apps.trends.models import AudienceType, Trend
@@ -95,3 +96,28 @@ class GeneratedContent(BaseModel):
 
     def __str__(self):
         return f"{self.get_content_type_display()} v{self.version} for {self.brief.trend.title}"
+
+
+class ContentBriefFeedback(BaseModel):
+    """A private rating and comment about one user's generated brief."""
+
+    brief = models.ForeignKey(
+        ContentBrief, on_delete=models.CASCADE, related_name="feedback"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="content_brief_feedback",
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    comment = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["brief", "created_by"], name="unique_feedback_per_user_brief"
+            )
+        ]
+        indexes = [models.Index(fields=["brief", "created_at"])]

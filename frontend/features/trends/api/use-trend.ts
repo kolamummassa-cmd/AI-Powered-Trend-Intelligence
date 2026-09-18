@@ -18,7 +18,7 @@ export function useReanalyzeTrend(slug: string) {
 
 export function useTrendFeedback(slug: string) {
   return useMutation({
-    mutationFn: ({ isHelpful, comment }: { isHelpful: boolean; comment?: string }) =>
-      submitTrendFeedback(slug, isHelpful, comment),
+    mutationFn: ({ rating, comment }: { rating: number; comment?: string }) =>
+      submitTrendFeedback(slug, rating, comment),
   });
 }

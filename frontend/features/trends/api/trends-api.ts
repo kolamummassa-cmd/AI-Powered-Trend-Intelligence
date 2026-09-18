@@ -161,9 +161,9 @@ export async function reanalyzeTrend(slug: string) {
   return data;
 }
 
-export async function submitTrendFeedback(slug: string, isHelpful: boolean, comment = "") {
+export async function submitTrendFeedback(slug: string, rating: number, comment = "") {
   const { data } = await apiClient.post(`/trends/${slug}/feedback/`, {
-    is_helpful: isHelpful,
+    rating,
     comment,
   });
   return data;

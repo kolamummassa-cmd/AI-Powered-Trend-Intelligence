@@ -6,17 +6,16 @@ from django.core.mail import send_mail
 logger = logging.getLogger(__name__)
 
 
-def send_trend_feedback_email(*, is_helpful: bool, comment: str) -> None:
+def send_trend_feedback_email(*, rating: int, comment: str) -> None:
     """Deliver product feedback without exposing the submitting account."""
 
     recipient = getattr(settings, "FEEDBACK_RECIPIENT_EMAIL", "")
     if not recipient:
         return
 
-    sentiment = "Helpful" if is_helpful else "Needs work"
     message = (
         "New content-brief feedback\n\n"
-        f"Rating: {sentiment}\n\n"
+        f"Rating: {rating}/5 stars\n\n"
         f"Comment:\n{comment.strip() or 'No written comment was provided.'}\n\n"
         "This message intentionally does not identify the user who submitted it."
     )

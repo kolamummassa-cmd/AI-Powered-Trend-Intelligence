@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkIcon, RefreshCwIcon, SparklesIcon, Trash2Icon } from "lucide-react";
+import { BookmarkIcon, RefreshCwIcon, SparklesIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -66,8 +66,9 @@ export function ContentStudioPanel({
   const { data: job } = useAIJob(jobId);
   const retryJob = useRetryAIJob();
   const feedback = useTrendFeedback(trendSlug);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [askForFeedbackAfterBrief, setAskForFeedbackAfterBrief] = useState(false);
-  const [feedbackHelpful, setFeedbackHelpful] = useState(true);
+  const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
 
   useEffect(() => {
@@ -76,10 +77,20 @@ export function ContentStudioPanel({
     }
   }, [job?.status, queryClient, trendSlug]);
 
+  useEffect(() => {
+    if (!askForFeedbackAfterBrief || job?.status !== "completed") return;
+
+    const timer = window.setTimeout(() => {
+      setFeedbackOpen(true);
+      setAskForFeedbackAfterBrief(false);
+    }, 30_000);
+
+    return () => window.clearTimeout(timer);
+  }, [askForFeedbackAfterBrief, job?.status]);
+
   const brief = data?.results[0];
   const jobIsActive = job?.status === "queued" || job?.status === "running";
   const jobLabel = job?.job_type.replaceAll("_", " ");
-  const feedbackSheetOpen = askForFeedbackAfterBrief && job?.status === "completed";
   // CONTENT PERSPECTIVE: defaults to the trend's best audience purely
   // as a starting point — the user can always change it before
   // generating, and it never auto-updates to match best_audience once
@@ -296,63 +307,54 @@ export function ContentStudioPanel({
         )}
       </CardContent>
     </Card>
-    <Dialog open={feedbackSheetOpen} onOpenChange={(open) => { if (!open) setAskForFeedbackAfterBrief(false); }}>
-      <DialogContent className="bottom-0 top-auto max-h-[85vh] max-w-2xl translate-y-0 rounded-b-none border-primary/15 bg-linear-to-br from-slate-950 via-slate-900 to-accent/25 text-white sm:bottom-6 sm:rounded-2xl">
+    <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+      <DialogContent className="bottom-0 top-auto max-h-[85vh] max-w-xl translate-y-0 rounded-b-none border-primary/20 bg-linear-to-br from-white via-orange-50 to-amber-100 text-slate-950 animate-in fade-in slide-in-from-bottom-8 duration-700 sm:bottom-6 sm:rounded-2xl">
         <DialogHeader>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning">Your voice matters</p>
-          <DialogTitle className="text-xl text-white">How useful was this content brief?</DialogTitle>
-          <DialogDescription className="leading-6 text-slate-300">
-            Your feedback helps TrendJack Hunter create more useful opportunities and content angles for you.
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Quick rating</p>
+          <DialogTitle className="text-xl text-slate-950">How was this content brief?</DialogTitle>
+          <DialogDescription className="leading-6 text-slate-600">
+            Your rating helps us improve future content angles.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className={cn(
-              "border-white/15 bg-white/8 text-slate-100 hover:bg-white/15 hover:text-white",
-              feedbackHelpful && "border-accent/60 bg-accent/20 text-white",
-            )}
-            aria-pressed={feedbackHelpful}
-            onClick={() => setFeedbackHelpful(true)}
-          >
-            Helpful
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className={cn(
-              "border-white/15 bg-white/8 text-slate-100 hover:bg-white/15 hover:text-white",
-              !feedbackHelpful && "border-warning/60 bg-warning/15 text-white",
-            )}
-            aria-pressed={!feedbackHelpful}
-            onClick={() => setFeedbackHelpful(false)}
-          >
-            Needs work
-          </Button>
+        <div className="mt-5 flex items-center gap-1" role="group" aria-label="Rate this content brief from one to five stars">
+          {Array.from({ length: 5 }, (_, index) => {
+            const rating = index + 1;
+            return (
+              <button
+                key={rating}
+                type="button"
+                className="rounded-full p-1.5 transition-transform duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
+                aria-pressed={feedbackRating === rating}
+                onClick={() => setFeedbackRating(rating)}
+              >
+                <StarIcon className={cn("size-8 transition-colors", feedbackRating >= rating ? "fill-primary text-primary" : "text-orange-200")} />
+              </button>
+            );
+          })}
         </div>
-        <label className="mt-4 block text-sm font-semibold text-white" htmlFor="brief-feedback">
-          Tell us more <span className="font-normal text-slate-400">(optional)</span>
+        <label className="mt-4 block text-sm font-semibold text-slate-900" htmlFor="brief-feedback">
+          Comment <span className="font-normal text-slate-500">(optional)</span>
         </label>
         <textarea
           id="brief-feedback"
           value={feedbackComment}
           onChange={(event) => setFeedbackComment(event.target.value)}
           placeholder="What worked well, or what should we improve?"
-          className="mt-2 min-h-28 w-full resize-y rounded-xl border border-white/15 bg-white/8 p-3 text-sm leading-6 text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="mt-2 min-h-24 w-full resize-y rounded-xl border border-orange-200 bg-white/85 p-3 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
-        {feedback.isError && <p className="mt-2 text-sm text-red-300">We could not save your feedback. Please try again.</p>}
-        <DialogFooter className="border-t border-white/10 pt-4">
-          <Button type="button" variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white" onClick={() => setAskForFeedbackAfterBrief(false)}>
+        {feedback.isError && <p className="mt-2 text-sm text-destructive">We could not save your feedback. Please try again.</p>}
+        <DialogFooter className="border-t border-orange-200/80 pt-4">
+          <Button type="button" variant="ghost" className="text-slate-600 hover:bg-orange-100 hover:text-slate-900" onClick={() => setFeedbackOpen(false)}>
             Not now
           </Button>
           <Button
             type="button"
             className="bg-primary hover:bg-primary-hover"
-            disabled={feedback.isPending}
+            disabled={feedback.isPending || feedbackRating === 0}
             onClick={() => feedback.mutate(
-              { isHelpful: feedbackHelpful, comment: feedbackComment.trim() },
-              { onSuccess: () => { setAskForFeedbackAfterBrief(false); setFeedbackComment(""); } },
+              { rating: feedbackRating, comment: feedbackComment.trim() },
+              { onSuccess: () => { setFeedbackOpen(false); setFeedbackRating(0); setFeedbackComment(""); } },
             )}
           >
             {feedback.isPending ? "Sending..." : "Send feedback"}

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.content_studio.models import ContentBrief, ContentType, GeneratedContent
+from apps.content_studio.models import ContentBrief, ContentBriefFeedback, ContentType, GeneratedContent
 from apps.trends.models import AudienceType
 
 
@@ -94,3 +94,10 @@ class GenerateBriefRequestSerializer(serializers.Serializer):
 class GenerateContentRequestSerializer(serializers.Serializer):
     brief_id = serializers.UUIDField()
     content_type = serializers.ChoiceField(choices=ContentType.choices)
+
+
+class ContentBriefFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContentBriefFeedback
+        fields = ("id", "brief", "rating", "comment", "created_at")
+        read_only_fields = ("id", "brief", "created_at")

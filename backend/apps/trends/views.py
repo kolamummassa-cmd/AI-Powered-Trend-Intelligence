@@ -21,8 +21,9 @@ from apps.trends.serializers import (
     TrendDetailSerializer,
     TrendListSerializer,
 )
-from apps.trend_analysis.models import TrendAnalysis, TrendAnalysisFeedback
-from apps.trend_analysis.serializers import TrendAnalysisFeedbackSerializer
+from apps.trend_analysis.models import TrendAnalysis
+from apps.content_studio.models import ContentBrief, ContentBriefFeedback
+from apps.content_studio.serializers import ContentBriefFeedbackSerializer
 from apps.trends.services import get_dashboard_stats
 
 
@@ -127,29 +128,29 @@ class TrendAnalysisFeedbackView(APIView):
 
     def post(self, request, slug):
         trend = get_object_or_404(Trend, slug=slug)
-        analysis = TrendAnalysis.objects.filter(trend=trend, created_by=request.user).first()
-        if analysis is None:
+        brief = ContentBrief.objects.filter(trend=trend, created_by=request.user).first()
+        if brief is None:
             return Response(
-                {"detail": "This trend has not been analyzed yet."}, status=status.HTTP_409_CONFLICT
+                {"detail": "Create a content brief before submitting feedback."}, status=status.HTTP_409_CONFLICT
             )
-        serializer = TrendAnalysisFeedbackSerializer(data=request.data)
+        serializer = ContentBriefFeedbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        feedback, _ = TrendAnalysisFeedback.objects.update_or_create(
-            analysis=analysis,
+        feedback, _ = ContentBriefFeedback.objects.update_or_create(
+            brief=brief,
             created_by=request.user,
             defaults={
-                "is_helpful": serializer.validated_data["is_helpful"],
+                "rating": serializer.validated_data["rating"],
                 "comment": serializer.validated_data.get("comment", ""),
             },
         )
         transaction.on_commit(
             lambda: send_trend_feedback_email(
-                is_helpful=feedback.is_helpful,
+                rating=feedback.rating,
                 comment=feedback.comment,
             )
         )
         return Response(
-            TrendAnalysisFeedbackSerializer(feedback).data, status=status.HTTP_201_CREATED
+            ContentBriefFeedbackSerializer(feedback).data, status=status.HTTP_201_CREATED
         )
 
 

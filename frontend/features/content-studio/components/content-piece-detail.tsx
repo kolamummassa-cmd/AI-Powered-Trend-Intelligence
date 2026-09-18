@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkIcon, CheckIcon, CopyIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftIcon, BookmarkIcon, CheckIcon, CopyIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -68,8 +68,8 @@ export function ContentPieceDetail({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/content">Back to content library</Link>
+      <Button asChild variant="outline" size="sm" className="self-start">
+        <Link href="/content"><ArrowLeftIcon /> Back to content library</Link>
       </Button>
 
       <Card className="bg-linear-to-br from-primary/6 via-card to-warning/5">
