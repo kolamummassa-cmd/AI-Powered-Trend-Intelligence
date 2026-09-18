@@ -63,7 +63,7 @@ export function ContentPieceDetail({ id }: { id: string }) {
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   if (isError || !content) {
-    return <p className="text-sm text-danger">Could not load this content piece.</p>;
+    return <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-5 text-sm text-danger">Could not load this content piece.</div>;
   }
 
   return (
@@ -72,7 +72,7 @@ export function ContentPieceDetail({ id }: { id: string }) {
         <Link href="/content">Back to content library</Link>
       </Button>
 
-      <Card>
+      <Card className="bg-linear-to-br from-primary/6 via-card to-warning/5">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <CardTitle>{CONTENT_TYPE_LABELS[content.content_type]}</CardTitle>

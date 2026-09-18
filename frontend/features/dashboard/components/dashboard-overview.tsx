@@ -26,7 +26,7 @@ export function DashboardOverview() {
 
   if (isError || !stats) {
     return (
-      <div className="rounded-lg border border-border bg-muted/40 p-5">
+      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-5">
         <p className="font-medium">We couldn&apos;t load your dashboard right now.</p>
         <p className="mt-1 text-sm text-muted-foreground">Please try again in a moment.</p>
         <Button className="mt-4" size="sm" variant="outline" onClick={() => refetch()}>
@@ -63,7 +63,7 @@ export function DashboardOverview() {
           </div>
           {!highPriority && <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
           {highPriority && highPriority.results.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border py-12 text-center">
+            <div className="rounded-2xl border border-dashed border-primary/25 bg-linear-to-br from-primary/6 via-card to-warning/5 py-12 text-center">
               <p className="text-muted-foreground">
                 No high-priority trends yet — check back once more trends are analyzed.
               </p>

@@ -97,7 +97,7 @@ export function ContentStudioPanel({
   );
 
   return (
-    <Card className="h-full rounded-2xl shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md">
+    <Card className="h-full rounded-2xl bg-linear-to-br from-primary/8 via-card to-warning/5 shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md">
       <CardHeader className="px-4 py-5 sm:p-6">
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-baseline gap-3">

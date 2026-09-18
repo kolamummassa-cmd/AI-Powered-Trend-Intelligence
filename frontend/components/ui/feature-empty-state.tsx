@@ -26,7 +26,7 @@ export function FeatureEmptyState({
   benefits?: EmptyStateBenefit[];
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-8 sm:p-10">
+    <div className="rounded-2xl border border-primary/15 bg-linear-to-br from-primary/7 via-card to-warning/6 p-8 sm:p-10">
       <Badge variant="accent" className="font-medium">
         {badge}
       </Badge>

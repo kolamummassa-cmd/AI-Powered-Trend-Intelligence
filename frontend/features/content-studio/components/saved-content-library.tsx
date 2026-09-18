@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 
+import { ArrowRightIcon, BookmarkIcon, SparklesIcon } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -34,11 +37,27 @@ export function SavedContentLibrary() {
 
   if (!visibleContent || visibleContent.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border py-16 text-center">
-        <p className="text-muted-foreground">
-          Nothing saved yet. Save a hook, short video script, or post from a trend&apos;s Content
-          Studio panel to see it here.
-        </p>
+      <div className="rounded-2xl border border-primary/15 bg-linear-to-br from-primary/8 via-card to-warning/6 p-6 sm:p-10">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <BookmarkIcon className="size-6" aria-hidden="true" />
+          </span>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Build your library</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">Nothing saved yet</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            Turn a useful trend into a hook, short video script, or post, then save the version you want to keep.
+          </p>
+          <Button asChild className="mt-6">
+            <Link href="/trends">
+              Explore trends <ArrowRightIcon />
+            </Link>
+          </Button>
+        </div>
+        <div className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-3">
+          <LibraryStep number="01" title="Choose a trend" description="Open a signal that fits your audience." />
+          <LibraryStep number="02" title="Generate content" description="Create the format you need in Content Studio." />
+          <LibraryStep number="03" title="Save the best version" description="Return here whenever you are ready to publish." />
+        </div>
       </div>
     );
   }
@@ -73,6 +92,19 @@ export function SavedContentLibrary() {
           </Card>
         </Link>
       ))}
+    </div>
+  );
+}
+
+function LibraryStep({ number, title, description }: { number: string; title: string; description: string }) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/70 p-4">
+      <div className="flex items-center gap-2">
+        <SparklesIcon className="size-4 text-primary" aria-hidden="true" />
+        <span className="text-xs font-semibold tracking-[0.16em] text-primary">{number}</span>
+      </div>
+      <p className="mt-3 text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
     </div>
   );
 }

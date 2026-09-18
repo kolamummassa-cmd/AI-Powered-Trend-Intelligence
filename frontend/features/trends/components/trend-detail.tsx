@@ -168,7 +168,7 @@ export function TrendDetail({ slug }: { slug: string }) {
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <ContentStudioPanel trendSlug={trend.slug} bestAudience={trend.best_audience || undefined} />
 
-        <aside className="rounded-2xl border border-primary bg-secondary/75 p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
+        <aside className="rounded-2xl border border-accent/25 bg-linear-to-br from-accent/12 via-card to-sky-500/8 p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-xl font-semibold tracking-tight">Evidence scores</h2>
             <span className="text-xs font-medium tracking-[0.2em] text-muted-foreground">03</span>
@@ -176,12 +176,12 @@ export function TrendDetail({ slug }: { slug: string }) {
           <p className="mt-2 text-sm text-muted-foreground">
             A clear view of how strong, actionable, and well-supported this trend is.
           </p>
-          <div className="mt-6 space-y-5 rounded-xl border border-primary/60 bg-card p-4">
+          <div className="mt-6 space-y-5 rounded-xl border border-accent/20 bg-card/85 p-4">
             <ScoreBar label="Trend strength" score={trend.trend_score} />
             <ScoreBar label="Opportunity to act" score={trend.opportunity_score} />
             <ScoreBar label="Evidence confidence" score={trend.confidence_score} />
           </div>
-          <div className="mt-4 rounded-lg border border-primary/60 bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
+          <div className="mt-4 rounded-lg border border-accent/20 bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
             {analysis
               ? `${trend.source_count} independent source${trend.source_count === 1 ? "" : "s"} · ${trend.source_freshness} evidence.`
               : "No analysis yet. Select Analyze now to calculate these scores from the available sources."}
@@ -254,7 +254,7 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
       {trend.action_summary && (
-        <Card className="border-primary/30 bg-primary/5">
+        <Card className="border-primary/20 bg-linear-to-br from-primary/10 via-card to-warning/8">
           <CardHeader>
             <CardTitle className="text-base">Why this is worth acting on now</CardTitle>
           </CardHeader>
@@ -360,7 +360,7 @@ export function TrendDetail({ slug }: { slug: string }) {
 
 function SourceEvidence({ links }: { links: TrendSourceLink[] }) {
   return (
-    <details className="group rounded-xl border border-primary bg-card shadow-sm transition-shadow hover:shadow-md">
+    <details className="group rounded-xl border border-primary/20 bg-card shadow-sm transition-shadow hover:shadow-md">
       <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4">
         <span className="text-base font-semibold">Source evidence</span>
         <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -378,7 +378,7 @@ function SourceEvidence({ links }: { links: TrendSourceLink[] }) {
           {links.map((link) => (
             <div
               key={`${link.platform_slug}-${link.created_at}`}
-              className="flex items-center justify-between gap-2 rounded-md border border-primary/60 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-2 rounded-md border border-primary/20 px-3 py-2 text-sm"
             >
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">

@@ -8,15 +8,15 @@ export function PlatformDistributionCard({ data }: { data: PlatformDistribution[
   const globalCount = globalSources.reduce((total, row) => total + row.trend_count, 0);
 
   return (
-    <Card>
+    <Card className="bg-linear-to-br from-accent/6 via-card to-sky-500/5">
       <CardHeader>
         <CardTitle className="text-base">TrendJack Hunter source coverage</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {data.length === 0 && (
-          <p className="text-sm text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-accent/25 bg-card/70 p-5 text-sm text-muted-foreground">
             We&apos;re setting up trend sources. Check back shortly.
-          </p>
+          </div>
         )}
         {data.length > 0 && (
           <>
