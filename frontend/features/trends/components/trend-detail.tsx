@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, ChevronDownIcon, ExternalLinkIcon, RefreshCwIcon, ThumbsDownIcon, ThumbsUpIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ContentStudioPanel } from "@/features/content-studio/components/content-studio-panel";
 import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
 import { AUDIENCE_LABELS, type AudienceType, type TrendSourceLink } from "@/features/trends/api/trends-api";
-import { useReanalyzeTrend, useTrend, useTrendFeedback } from "@/features/trends/api/use-trend";
+import { useReanalyzeTrend, useTrend } from "@/features/trends/api/use-trend";
 import { ScoreBar } from "@/features/trends/components/score-bar";
 
 const STATUS_VARIANT = {
@@ -47,7 +47,6 @@ function meaningfulText(value: string | null | undefined) {
 export function TrendDetail({ slug }: { slug: string }) {
   const { data: trend, isLoading, isError, refetch } = useTrend(slug);
   const reanalyze = useReanalyzeTrend(slug);
-  const feedback = useTrendFeedback(slug);
   const [jobId, setJobId] = useState<string>();
   const { data: job } = useAIJob(jobId);
   const retryJob = useRetryAIJob();
@@ -254,27 +253,17 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
       {trend.action_summary && (
-        <Card className="overflow-hidden border-slate-700 bg-linear-to-br from-slate-950 via-slate-900 to-primary/55 text-slate-50">
+        <Card className="overflow-hidden border-accent/20 bg-linear-to-br from-accent/12 via-card to-sky-500/6">
           <CardHeader>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning">Decision brief</p>
-            <CardTitle className="text-xl text-white">Why this is worth acting on now</CardTitle>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-foreground">Decision brief</p>
+            <CardTitle className="text-xl">Why this is worth acting on now</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            <p className="max-w-4xl text-sm leading-6 text-slate-200">{trend.action_summary}</p>
+            <p className="max-w-4xl text-sm leading-6 text-foreground">{trend.action_summary}</p>
             <div className="grid gap-2 sm:grid-cols-3">
               <DecisionMetric label="Opportunity" value={trend.opportunity_score} />
               <DecisionMetric label="Confidence" value={trend.confidence_score} />
               <DecisionMetric label="Sources" value={trend.source_count} suffix="" />
-            </div>
-            <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4 text-sm text-slate-300">
-              <span>Was this analysis useful?</span>
-              <Button size="sm" variant="outline" disabled={feedback.isPending} onClick={() => feedback.mutate({ isHelpful: true })}>
-                <ThumbsUpIcon /> Yes
-              </Button>
-              <Button size="sm" variant="outline" disabled={feedback.isPending} onClick={() => feedback.mutate({ isHelpful: false })}>
-                <ThumbsDownIcon /> Not yet
-              </Button>
-              {feedback.isSuccess && <span className="text-emerald-300">Thanks—your feedback improves future analyses.</span>}
             </div>
           </CardContent>
         </Card>
@@ -428,11 +417,11 @@ function DecisionMetric({
   suffix?: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/8 px-4 py-3">
-      <p className="text-xs font-medium text-slate-300">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-white">
+    <div className="rounded-xl border border-accent/15 bg-card/85 px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-foreground">
         {value ?? "—"}
-        {value !== null && <span className="ml-0.5 text-sm font-medium text-slate-300">{suffix}</span>}
+        {value !== null && <span className="ml-0.5 text-sm font-medium text-muted-foreground">{suffix}</span>}
       </p>
     </div>
   );

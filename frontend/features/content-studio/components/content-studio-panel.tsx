@@ -7,6 +7,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAIJob, useRetryAIJob } from "@/features/ai-jobs/api/use-ai-job";
 import {
@@ -24,6 +32,7 @@ import {
   useSetContentSaved,
 } from "@/features/content-studio/api/use-content-studio";
 import { AUDIENCE_LABELS, AUDIENCE_TYPES, type AudienceType } from "@/features/trends/api/trends-api";
+import { useTrendFeedback } from "@/features/trends/api/use-trend";
 import { cn } from "@/lib/utils";
 
 function latestByType(pieces: GeneratedContent[], contentType: ContentType) {
@@ -56,6 +65,10 @@ export function ContentStudioPanel({
   const [jobId, setJobId] = useState<string>();
   const { data: job } = useAIJob(jobId);
   const retryJob = useRetryAIJob();
+  const feedback = useTrendFeedback(trendSlug);
+  const [askForFeedbackAfterBrief, setAskForFeedbackAfterBrief] = useState(false);
+  const [feedbackHelpful, setFeedbackHelpful] = useState(true);
+  const [feedbackComment, setFeedbackComment] = useState("");
 
   useEffect(() => {
     if (job?.status === "completed") {
@@ -66,6 +79,7 @@ export function ContentStudioPanel({
   const brief = data?.results[0];
   const jobIsActive = job?.status === "queued" || job?.status === "running";
   const jobLabel = job?.job_type.replaceAll("_", " ");
+  const feedbackSheetOpen = askForFeedbackAfterBrief && job?.status === "completed";
   // CONTENT PERSPECTIVE: defaults to the trend's best audience purely
   // as a starting point — the user can always change it before
   // generating, and it never auto-updates to match best_audience once
@@ -97,6 +111,7 @@ export function ContentStudioPanel({
   );
 
   return (
+    <>
     <Card className="h-full rounded-2xl bg-linear-to-br from-slate-900/5 via-card to-accent/8 shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md dark:from-slate-950 dark:via-card dark:to-accent/10">
       <CardHeader className="px-4 py-5 sm:p-6">
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -110,7 +125,7 @@ export function ContentStudioPanel({
                 variant="outline"
                 size="sm"
                 className="w-full sm:w-auto"
-                onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
+                onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => { setJobId(nextJob.id); setAskForFeedbackAfterBrief(true); } })}
                 disabled={createBrief.isPending || jobIsActive}
               >
                 <RefreshCwIcon />
@@ -159,8 +174,8 @@ export function ContentStudioPanel({
         {!brief && (
           <div className="space-y-5">
             <Button
-              className="w-full"
-              onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => setJobId(nextJob.id) })}
+              className="w-full bg-primary hover:bg-primary-hover"
+              onClick={() => createBrief.mutate(perspective, { onSuccess: (nextJob) => { setJobId(nextJob.id); setAskForFeedbackAfterBrief(true); } })}
               disabled={createBrief.isPending || jobIsActive}
             >
               <SparklesIcon />
@@ -281,6 +296,71 @@ export function ContentStudioPanel({
         )}
       </CardContent>
     </Card>
+    <Dialog open={feedbackSheetOpen} onOpenChange={(open) => { if (!open) setAskForFeedbackAfterBrief(false); }}>
+      <DialogContent className="bottom-0 top-auto max-h-[85vh] max-w-2xl translate-y-0 rounded-b-none border-primary/15 bg-linear-to-br from-slate-950 via-slate-900 to-accent/25 text-white sm:bottom-6 sm:rounded-2xl">
+        <DialogHeader>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning">Your voice matters</p>
+          <DialogTitle className="text-xl text-white">How useful was this content brief?</DialogTitle>
+          <DialogDescription className="leading-6 text-slate-300">
+            Your feedback helps TrendJack Hunter create more useful opportunities and content angles for you.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              "border-white/15 bg-white/8 text-slate-100 hover:bg-white/15 hover:text-white",
+              feedbackHelpful && "border-accent/60 bg-accent/20 text-white",
+            )}
+            aria-pressed={feedbackHelpful}
+            onClick={() => setFeedbackHelpful(true)}
+          >
+            Helpful
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              "border-white/15 bg-white/8 text-slate-100 hover:bg-white/15 hover:text-white",
+              !feedbackHelpful && "border-warning/60 bg-warning/15 text-white",
+            )}
+            aria-pressed={!feedbackHelpful}
+            onClick={() => setFeedbackHelpful(false)}
+          >
+            Needs work
+          </Button>
+        </div>
+        <label className="mt-4 block text-sm font-semibold text-white" htmlFor="brief-feedback">
+          Tell us more <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <textarea
+          id="brief-feedback"
+          value={feedbackComment}
+          onChange={(event) => setFeedbackComment(event.target.value)}
+          placeholder="What worked well, or what should we improve?"
+          className="mt-2 min-h-28 w-full resize-y rounded-xl border border-white/15 bg-white/8 p-3 text-sm leading-6 text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        />
+        {feedback.isError && <p className="mt-2 text-sm text-red-300">We could not save your feedback. Please try again.</p>}
+        <DialogFooter className="border-t border-white/10 pt-4">
+          <Button type="button" variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white" onClick={() => setAskForFeedbackAfterBrief(false)}>
+            Not now
+          </Button>
+          <Button
+            type="button"
+            className="bg-primary hover:bg-primary-hover"
+            disabled={feedback.isPending}
+            onClick={() => feedback.mutate(
+              { isHelpful: feedbackHelpful, comment: feedbackComment.trim() },
+              { onSuccess: () => { setAskForFeedbackAfterBrief(false); setFeedbackComment(""); } },
+            )}
+          >
+            {feedback.isPending ? "Sending..." : "Send feedback"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

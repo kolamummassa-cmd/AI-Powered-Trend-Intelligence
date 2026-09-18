@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.trends.filters import TrendFilter
+from apps.trends.emails import send_trend_feedback_email
 from apps.core.ai_jobs import enqueue_ai_job
 from apps.core.models import AIJob
 from apps.core.permissions import IsVerifiedUser, enforce_ai_generation_quota
@@ -140,6 +141,12 @@ class TrendAnalysisFeedbackView(APIView):
                 "is_helpful": serializer.validated_data["is_helpful"],
                 "comment": serializer.validated_data.get("comment", ""),
             },
+        )
+        transaction.on_commit(
+            lambda: send_trend_feedback_email(
+                is_helpful=feedback.is_helpful,
+                comment=feedback.comment,
+            )
         )
         return Response(
             TrendAnalysisFeedbackSerializer(feedback).data, status=status.HTTP_201_CREATED

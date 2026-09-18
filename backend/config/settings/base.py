@@ -198,6 +198,9 @@ EMAIL_BACKEND = env(
 ANYMAIL = {"RESEND_API_KEY": RESEND_API_KEY}
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="TrendJack Hunter <onboarding@resend.dev>")
 EMAIL_VERIFICATION_CODE_TTL_MINUTES = env.int("EMAIL_VERIFICATION_CODE_TTL_MINUTES", default=15)
+# Product feedback is sent from DEFAULT_FROM_EMAIL to this private inbox.
+# Leave it blank in local development when email delivery is not needed.
+FEEDBACK_RECIPIENT_EMAIL = env("FEEDBACK_RECIPIENT_EMAIL", default="")
 
 # Optional error reporting. The SDK is imported only when explicitly configured,
 # which keeps local development dependency-light.

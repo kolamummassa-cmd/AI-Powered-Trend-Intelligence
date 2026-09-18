@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
+from django.test import override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -12,6 +13,20 @@ from apps.trend_sources.models import Platform, RawTrendSignal
 from apps.trends.models import Category, Trend, TrendSourceLink, TrendStatus
 from apps.trends.signal_areas import detect_signal_areas
 from apps.trends.services import ingest_raw_signal, normalize_title
+
+
+@override_settings(FEEDBACK_RECIPIENT_EMAIL="owner@example.com")
+@patch("apps.trends.emails.send_mail")
+def test_feedback_email_omits_submitting_user_identity(mock_send_mail):
+    from apps.trends.emails import send_trend_feedback_email
+
+    send_trend_feedback_email(is_helpful=False, comment="The brief needs a clearer call to action.")
+
+    _, kwargs = mock_send_mail.call_args
+    assert kwargs["recipient_list"] == ["owner@example.com"]
+    assert "Needs work" in kwargs["message"]
+    assert "clearer call to action" in kwargs["message"]
+    assert "creator@example.com" not in kwargs["message"]
 
 
 @pytest.fixture
