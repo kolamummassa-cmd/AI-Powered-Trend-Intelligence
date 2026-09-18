@@ -97,7 +97,7 @@ export function ContentStudioPanel({
   );
 
   return (
-    <Card className="h-full rounded-2xl bg-linear-to-br from-primary/8 via-card to-warning/5 shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md">
+    <Card className="h-full rounded-2xl bg-linear-to-br from-slate-900/5 via-card to-accent/8 shadow-sm transition-shadow hover:translate-y-0 hover:shadow-md dark:from-slate-950 dark:via-card dark:to-accent/10">
       <CardHeader className="px-4 py-5 sm:p-6">
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-baseline gap-3">
@@ -215,17 +215,21 @@ export function ContentStudioPanel({
             )}
 
             <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-foreground">Content angles</p>
+                <p className="mt-1 text-sm text-muted-foreground">Turn this trend into a format that is ready to shape and publish.</p>
+              </div>
               {CONTENT_TYPES.map((contentType) => {
                 const latest = latestByType(brief.generated_content, contentType);
                 const isGenerating =
                   (createContent.isPending && createContent.variables?.contentType === contentType) || jobIsActive;
 
                 return (
-                  <div key={contentType} className="min-w-0 rounded-md border border-border p-3">
+                  <div key={contentType} className="min-w-0 overflow-hidden rounded-xl border border-slate-700/70 bg-linear-to-br from-slate-950 via-slate-900 to-accent/20 p-4 text-slate-50 shadow-sm">
                     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{CONTENT_TYPE_LABELS[contentType]}</p>
-                        <p className="mt-1 break-words text-xs text-muted-foreground">
+                        <p className="text-base font-bold tracking-tight text-white">{CONTENT_TYPE_LABELS[contentType]}</p>
+                        <p className="mt-1 break-words text-xs font-semibold leading-5 text-slate-300">
                           {CONTENT_TYPE_DESCRIPTIONS[contentType]}
                         </p>
                       </div>
@@ -234,7 +238,7 @@ export function ContentStudioPanel({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="flex-1 sm:flex-none"
+                            className="flex-1 border-white/15 bg-white/8 text-slate-100 hover:bg-white/15 hover:text-white sm:flex-none"
                             onClick={() =>
                               setSaved.mutate({
                                 contentId: latest.id,
@@ -251,7 +255,7 @@ export function ContentStudioPanel({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 sm:flex-none"
+                          className="flex-1 border-white/15 bg-white/8 text-slate-100 hover:bg-white/15 hover:text-white sm:flex-none"
                           onClick={() =>
                             createContent.mutate({ briefId: brief.id, contentType }, { onSuccess: (nextJob) => setJobId(nextJob.id) })
                           }
@@ -263,11 +267,11 @@ export function ContentStudioPanel({
                       </div>
                     </div>
                     {latest ? (
-                      <p className="break-words whitespace-pre-wrap text-sm text-muted-foreground">
+                      <p className="break-words whitespace-pre-wrap text-sm leading-6 text-slate-200">
                         {latest.body}
                       </p>
                   ) : (
-                      <p className="text-sm text-muted-foreground">Not generated yet.</p>
+                      <p className="text-sm text-slate-300">Not generated yet.</p>
                     )}
                   </div>
                 );
