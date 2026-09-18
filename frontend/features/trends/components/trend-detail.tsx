@@ -254,13 +254,19 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
       {trend.action_summary && (
-        <Card className="border-primary/20 bg-linear-to-br from-primary/10 via-card to-warning/8">
+        <Card className="overflow-hidden border-slate-700 bg-linear-to-br from-slate-950 via-slate-900 to-primary/55 text-slate-50">
           <CardHeader>
-            <CardTitle className="text-base">Why this is worth acting on now</CardTitle>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-warning">Decision brief</p>
+            <CardTitle className="text-xl text-white">Why this is worth acting on now</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-foreground">{trend.action_summary}</p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-5">
+            <p className="max-w-4xl text-sm leading-6 text-slate-200">{trend.action_summary}</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <DecisionMetric label="Opportunity" value={trend.opportunity_score} />
+              <DecisionMetric label="Confidence" value={trend.confidence_score} />
+              <DecisionMetric label="Sources" value={trend.source_count} suffix="" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4 text-sm text-slate-300">
               <span>Was this analysis useful?</span>
               <Button size="sm" variant="outline" disabled={feedback.isPending} onClick={() => feedback.mutate({ isHelpful: true })}>
                 <ThumbsUpIcon /> Yes
@@ -268,37 +274,39 @@ export function TrendDetail({ slug }: { slug: string }) {
               <Button size="sm" variant="outline" disabled={feedback.isPending} onClick={() => feedback.mutate({ isHelpful: false })}>
                 <ThumbsDownIcon /> Not yet
               </Button>
-              {feedback.isSuccess && <span className="text-success">Thanks—your feedback improves future analyses.</span>}
+              {feedback.isSuccess && <span className="text-emerald-300">Thanks—your feedback improves future analyses.</span>}
             </div>
           </CardContent>
         </Card>
       )}
 
       {(intelligenceItems.length > 0 || hasLifecycle) && (
-        <Card>
+        <Card className="border-accent/20 bg-linear-to-br from-accent/12 via-card to-sky-500/6">
           <CardHeader>
-            <CardTitle className="text-base">Trend intelligence</CardTitle>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-foreground">The signal in plain language</p>
+            <CardTitle className="text-xl">Trend intelligence</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {intelligenceItems.map(({ label, text }) => (
-              <div key={label} className="space-y-1">
-                <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-sm text-black/70 dark:text-white/70">{text}</p>
+          <CardContent className="grid gap-3 text-sm md:grid-cols-3">
+            {intelligenceItems.map(({ label, text }, index) => (
+              <div key={label} className="rounded-xl border border-accent/15 bg-card/85 p-4">
+                <p className="text-xs font-semibold tracking-[0.16em] text-accent-foreground">0{index + 1}</p>
+                <p className="mt-3 text-base font-semibold text-foreground">{label}</p>
+                <p className="mt-2 leading-6 text-black/70 dark:text-white/70">{text}</p>
               </div>
             ))}
             {hasLifecycle && (
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">Trend timing</p>
-                <div className="flex flex-wrap items-center gap-4">
+              <div className="rounded-xl border border-accent/15 bg-card/85 p-4">
+                <p className="text-xs font-semibold tracking-[0.16em] text-accent-foreground">0{intelligenceItems.length + 1}</p>
+                <p className="mt-3 text-base font-semibold text-foreground">Trend timing</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                   {lifespan && (
-                    <p className="text-muted-foreground">
-                      Estimated lifespan: {" "}
-                      <span className="text-foreground">{lifespan}</span>
+                    <p className="rounded-full bg-accent/10 px-3 py-1.5 text-muted-foreground">
+                      Lifespan: <span className="font-medium text-foreground">{lifespan}</span>
                     </p>
                   )}
                   {trend.trend_stage && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Trend stage:</span>
+                    <div className="flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1.5">
+                      <span className="text-muted-foreground">Stage</span>
                       <Badge variant={TREND_STAGE_VARIANT[trend.trend_stage]}>
                         {trend.trend_stage}
                       </Badge>
@@ -312,18 +320,20 @@ export function TrendDetail({ slug }: { slug: string }) {
       )}
 
       {relevanceItems.length > 0 && (
-        <Card>
+        <Card className="border-primary/15 bg-linear-to-br from-primary/7 via-card to-warning/5">
           <CardHeader>
-            <CardTitle className="text-base">Practical perspectives</CardTitle>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Find your angle</p>
+            <CardTitle className="text-xl">Practical perspectives</CardTitle>
             <p className="text-sm text-muted-foreground">
               AI-generated explanations of how this trend could matter to different people.
             </p>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            {relevanceItems.map(({ label, text }) => (
-              <div key={label} className="space-y-1 rounded-lg border border-border p-3">
-                <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-sm text-black/70 dark:text-white/70">{text}</p>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            {relevanceItems.map(({ label, text }, index) => (
+              <div key={label} className="rounded-xl border border-primary/15 bg-card/85 p-4">
+                <p className="text-xs font-semibold tracking-[0.16em] text-primary">PERSPECTIVE 0{index + 1}</p>
+                <p className="mt-2 text-base font-semibold text-foreground">{label}</p>
+                <p className="mt-2 leading-6 text-black/70 dark:text-white/70">{text}</p>
               </div>
             ))}
           </CardContent>
@@ -405,5 +415,25 @@ function SourceEvidence({ links }: { links: TrendSourceLink[] }) {
         </CardContent>
       </Card>
     </details>
+  );
+}
+
+function DecisionMetric({
+  label,
+  value,
+  suffix = "/100",
+}: {
+  label: string;
+  value: number | null;
+  suffix?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/8 px-4 py-3">
+      <p className="text-xs font-medium text-slate-300">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-white">
+        {value ?? "—"}
+        {value !== null && <span className="ml-0.5 text-sm font-medium text-slate-300">{suffix}</span>}
+      </p>
+    </div>
   );
 }
