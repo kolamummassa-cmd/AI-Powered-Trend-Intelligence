@@ -1,6 +1,7 @@
 from ai_providers import get_ai_provider
 from ai_providers.base import SourceSnippet, TrendAnalysisContext
 from apps.trend_analysis.models import TrendAnalysis
+from apps.trend_analysis.evidence import EvidenceResult, verify_trend_evidence
 from apps.trends.models import Trend
 
 
@@ -18,7 +19,7 @@ def build_action_summary(
     trend: Trend,
     *,
     opportunity_score: int,
-    confidence_score: int,
+    evidence_score: int,
     trend_stage: str,
     why_it_matters: str,
 ) -> str:
@@ -27,36 +28,35 @@ def build_action_summary(
     urgency = "Act now" if trend_stage in {"emerging", "growing"} else "Monitor closely"
     return (
         f"{urgency}: opportunity is {opportunity_score}/100 with "
-        f"{confidence_score}/100 analysis confidence, "
+        f"{evidence_score}/100 evidence strength, "
         f"supported by {source_count} source{'s' if source_count != 1 else ''}. "
         f"{why_it_matters or 'Review the evidence before committing resources.'}"
     )
 
 
-def _build_context(trend: Trend) -> TrendAnalysisContext:
-    sources = [
+def _build_context(trend: Trend, evidence: EvidenceResult) -> TrendAnalysisContext:
+    feed_sources = [
         SourceSnippet(
             platform=link.platform.name,
             title=link.raw_signal.title,
             summary=link.raw_signal.summary,
             url=link.source_url,
+            published_at=link.raw_signal.published_at,
             credibility_weight=link.platform.credibility_weight,
             kuzana_priority_weight=link.platform.kuzana_priority_weight,
             relevance_score=link.relevance_score,
         )
-        # Most recent sources first — if there are more than the
-        # prompt-building cap (8, see AIProvider._build_user_prompt),
-        # the newest coverage of the trend is more useful context than
-        # whatever was first.
+        # Most recent sources first. Five leave room for up to three freshly
+        # verified web sources in the model context.
         for link in trend.source_links.select_related("platform", "raw_signal").order_by(
             "-created_at"
         )
-    ]
+    ][:5]
     return TrendAnalysisContext(
         title=trend.title,
         existing_summary=trend.source_excerpt or trend.summary,
         category_name=trend.category.name if trend.category else None,
-        sources=sources,
+        sources=feed_sources + evidence.external_sources,
     )
 
 
@@ -68,7 +68,8 @@ def analyze_trend(trend: Trend, user=None, provider_name: str | None = None) -> 
     """
 
     provider = get_ai_provider(provider_name)
-    context = _build_context(trend)
+    evidence = verify_trend_evidence(trend)
+    context = _build_context(trend, evidence)
     result = provider.generate_trend_analysis(context)
     show_opportunity_copy = _should_surface_opportunity_copy(result)
     opportunity_headline = result.opportunity_headline if show_opportunity_copy else ""
@@ -85,7 +86,7 @@ def analyze_trend(trend: Trend, user=None, provider_name: str | None = None) -> 
         action_summary=build_action_summary(
             trend,
             opportunity_score=result.opportunity_score,
-            confidence_score=result.confidence_score,
+            evidence_score=evidence.score,
             trend_stage=result.trend_stage,
             why_it_matters=result.why_it_matters,
         ),
@@ -95,6 +96,10 @@ def analyze_trend(trend: Trend, user=None, provider_name: str | None = None) -> 
         ai_relevance=result.ai_relevance,
         trend_score=result.trend_score,
         opportunity_score=result.opportunity_score,
+        evidence_score=evidence.score,
+        evidence_source_count=evidence.feed_source_count,
+        verified_source_count=evidence.verified_source_count,
+        evidence_summary=evidence.summary,
         confidence_score=result.confidence_score,
         content_creator_score=result.content_creator_score,
         founder_score=result.founder_score,
@@ -109,5 +114,6 @@ def analyze_trend(trend: Trend, user=None, provider_name: str | None = None) -> 
         investor_hook=investor_hook,
         creator_hook=creator_hook,
         model_used=f"{(provider_name or provider.__class__.__name__)}",
+        prompt_version="v2",
     )
     return analysis

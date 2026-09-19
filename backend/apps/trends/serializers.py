@@ -48,6 +48,8 @@ class TrendListSerializer(serializers.ModelSerializer):
     estimated_lifespan = serializers.SerializerMethodField()
     trend_score = serializers.SerializerMethodField()
     opportunity_score = serializers.SerializerMethodField()
+    evidence_score = serializers.SerializerMethodField()
+    verified_source_count = serializers.SerializerMethodField()
     confidence_score = serializers.SerializerMethodField()
     analyzed_at = serializers.SerializerMethodField()
     best_audience = serializers.SerializerMethodField()
@@ -71,6 +73,8 @@ class TrendListSerializer(serializers.ModelSerializer):
             "estimated_lifespan",
             "trend_score",
             "opportunity_score",
+            "evidence_score",
+            "verified_source_count",
             "confidence_score",
             "analyzed_at",
             "first_detected_at",
@@ -154,6 +158,12 @@ class TrendListSerializer(serializers.ModelSerializer):
     def get_opportunity_score(self, obj):
         return self._analysis_value(obj, "opportunity_score")
 
+    def get_evidence_score(self, obj):
+        return self._analysis_value(obj, "evidence_score")
+
+    def get_verified_source_count(self, obj):
+        return self._analysis_value(obj, "verified_source_count", 0)
+
     def get_confidence_score(self, obj):
         return self._analysis_value(obj, "confidence_score")
 
@@ -194,6 +204,7 @@ class TrendDetailSerializer(TrendListSerializer):
             "what_is_happening",
             "suggested_content_angle",
             "action_summary",
+            "evidence_summary",
             "created_at",
         )
 
@@ -230,6 +241,9 @@ class TrendDetailSerializer(TrendListSerializer):
 
     def get_action_summary(self, obj):
         return self._analysis_value(obj, "action_summary", "")
+
+    def get_evidence_summary(self, obj):
+        return self._analysis_value(obj, "evidence_summary", "")
 
 
 class PlatformDistributionSerializer(serializers.Serializer):

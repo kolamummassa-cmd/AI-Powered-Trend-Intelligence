@@ -10,7 +10,7 @@ row — never a change to the ingestion or analysis code.
 import hashlib
 import logging
 import re
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from html import unescape
 from html.parser import HTMLParser
 
@@ -174,14 +174,34 @@ class RSSAdapter(TrendSourceAdapter):
             raise ValueError(f"Could not parse RSS feed at {feed_url}: {parsed.bozo_exception}")
 
         signals = []
+        now = datetime.now(dt_timezone.utc)
+        maximum_age = timedelta(hours=settings.RSS_SIGNAL_MAX_AGE_HOURS)
         for entry in parsed.entries:
             external_id = entry.get("id") or entry.get("link")
             if not external_id:
                 continue
 
-            published_at = None
-            if getattr(entry, "published_parsed", None):
-                published_at = datetime(*entry.published_parsed[:6], tzinfo=dt_timezone.utc)
+            # RSS archives often expose years of history in the same feed.
+            # Drop an entry before fetching its article page or writing it to
+            # the database unless it has a trustworthy, recent publication
+            # (or update) time. A source can opt in to accepting undated
+            # entries only when an operator has a documented reason.
+            date_parts = entry.get("published_parsed") or entry.get("updated_parsed")
+            published_at = (
+                datetime(*date_parts[:6], tzinfo=dt_timezone.utc) if date_parts else None
+            )
+            if published_at is None and settings.RSS_REQUIRE_PUBLISHED_AT:
+                logger.info(
+                    "Skipping undated RSS entry from %s: %s", feed_url, entry.get("title", "")
+                )
+                continue
+            is_future_dated = published_at is not None and published_at > now + timedelta(minutes=5)
+            is_too_old = published_at is not None and now - published_at > maximum_age
+            if is_future_dated or is_too_old:
+                logger.info(
+                    "Skipping stale RSS entry from %s: %s", feed_url, entry.get("title", "")
+                )
+                continue
 
             feed_summary = _clean_summary(entry.get("summary", ""))
             source_url = entry.get("link", "")

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from ai_providers.safety import sanitize_untrusted_source_text
 
@@ -12,6 +13,7 @@ class SourceSnippet:
     title: str
     summary: str = ""
     url: str = ""
+    published_at: datetime | None = None
     credibility_weight: int = 50
     kuzana_priority_weight: int = 50
     relevance_score: int = 50
@@ -217,6 +219,10 @@ defensible founder implication exists.
 defensible investor implication exists.
 - creator_hook: one short, specific prompt for a content creator to consider. Return an empty string when no
 defensible creator implication exists.
+
+Base any claim that a trend is new, accelerating, or still current on the dated
+source evidence supplied. If dates or corroboration are thin, say so plainly
+and use cautious language rather than presenting certainty.
 
 Respond with raw JSON only."""
 
@@ -442,10 +448,15 @@ class AIProvider(ABC):
             for src in context.sources[:8]:
                 title = sanitize_untrusted_source_text(src.title, 220)
                 summary = sanitize_untrusted_source_text(src.summary, 300)
+                published_at = src.published_at.isoformat() if src.published_at else "unknown"
+                source_metadata = (
+                    f"{src.platform}; published={published_at}; "
+                    f"credibility={src.credibility_weight}; "
+                    f"TrendJack priority={src.kuzana_priority_weight}; "
+                    f"relevance={src.relevance_score}"
+                )
                 lines.append(
-                    f"- [{src.platform}; credibility={src.credibility_weight}; "
-                    f"TrendJack priority={src.kuzana_priority_weight}; relevance={src.relevance_score}] "
-                    f"{title}: {summary}"
+                    f"- [{source_metadata}] {title}: {summary}"
                 )
             lines.append("</untrusted_source_snippets>")
         return "\n".join(lines)

@@ -1,11 +1,14 @@
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from ai_providers.base import TrendAnalysisResult
 from apps.trend_analysis.models import TrendAnalysis
 from apps.trend_analysis.services import analyze_trend
+from apps.trend_analysis.evidence import verify_trend_evidence
 from apps.trend_sources.models import Platform, RawTrendSignal
 from apps.trends.models import Category, Trend, TrendSourceLink
 
@@ -101,6 +104,8 @@ class TestAnalyzeTrend:
         assert analysis.investor_score == 60
         assert analysis.best_audience == "founders"
         assert analysis.creator_hook.startswith("Explain the practical")
+        assert analysis.evidence_score >= 0
+        assert "No dated feed evidence" in analysis.evidence_summary
 
     @patch("apps.trend_analysis.services.get_ai_provider")
     def test_hides_editorial_copy_when_confidence_is_too_low(self, mock_get_provider, trend):
@@ -153,6 +158,80 @@ class TestAnalyzeTrend:
         analyze_trend(trend)
 
         assert TrendAnalysis.objects.filter(trend=trend).count() == 2
+
+
+@pytest.mark.django_db
+class TestEvidenceVerification:
+    @override_settings(SERPER_API_KEY="")
+    def test_scores_recent_credible_diverse_feed_evidence_deterministically(self, trend):
+        now = timezone.now()
+        first_link = trend.source_links.first()
+        first_link.raw_signal.published_at = now - timedelta(hours=4)
+        first_link.raw_signal.save(update_fields=["published_at"])
+        first_link.platform.credibility_weight = 100
+        first_link.platform.save(update_fields=["credibility_weight"])
+
+        second_platform = Platform.objects.create(
+            name="Second Source", slug="second-source", adapter_key="rss", credibility_weight=100
+        )
+        second_signal = RawTrendSignal.objects.create(
+            platform=second_platform,
+            external_id="two",
+            title=trend.title,
+            published_at=now - timedelta(hours=6),
+        )
+        TrendSourceLink.objects.create(
+            trend=trend,
+            platform=second_platform,
+            raw_signal=second_signal,
+            source_url="https://second.example.com/story",
+            relevance_score=100,
+        )
+
+        result = verify_trend_evidence(trend)
+
+        assert result.feed_source_count == 2
+        assert result.verified_source_count == 0
+        assert result.score == 72
+        assert "live web corroboration is not configured" in result.summary
+
+    @override_settings(SERPER_API_KEY="test-key", WEB_VERIFICATION_MAX_AGE_HOURS=72)
+    @patch("apps.trend_analysis.evidence.requests.post")
+    def test_counts_only_recent_distinct_web_results(self, mock_post, trend):
+        mock_post.return_value = MagicMock(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "news": [
+                    {
+                        "title": "Independent report",
+                        "snippet": "Recent corroboration.",
+                        "link": "https://news.example.com/report",
+                        "source": "Example News",
+                        "date": "2 hours ago",
+                    },
+                    {
+                        "title": "Duplicate publisher",
+                        "snippet": "Should not count twice.",
+                        "link": "https://news.example.com/another-report",
+                        "source": "Example News",
+                        "date": "1 hour ago",
+                    },
+                    {
+                        "title": "Old report",
+                        "snippet": "Too old.",
+                        "link": "https://old.example.com/report",
+                        "source": "Old News",
+                        "date": "4 days ago",
+                    },
+                ]
+            },
+        )
+
+        result = verify_trend_evidence(trend)
+
+        assert result.verified_source_count == 1
+        assert len(result.external_sources) == 1
+        assert result.external_sources[0].platform == "Example News"
 
 
 HIGH_PRIORITY_RESULT = TrendAnalysisResult(

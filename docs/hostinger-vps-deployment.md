@@ -28,6 +28,7 @@ down Render.
 ```bash
 git pull --ff-only
 docker compose up -d --build
+docker compose run --rm app python backend/manage.py migrate
 ```
 
 Inspect a service without exposing secrets:

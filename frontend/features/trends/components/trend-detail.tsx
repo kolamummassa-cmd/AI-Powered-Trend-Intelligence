@@ -178,11 +178,11 @@ export function TrendDetail({ slug }: { slug: string }) {
           <div className="mt-6 space-y-5 rounded-xl border border-accent/20 bg-card/85 p-4">
             <ScoreBar label="Trend strength" score={trend.trend_score} />
             <ScoreBar label="Opportunity to act" score={trend.opportunity_score} />
-            <ScoreBar label="Evidence confidence" score={trend.confidence_score} />
+            <ScoreBar label="Evidence strength" score={trend.evidence_score} />
           </div>
           <div className="mt-4 rounded-lg border border-accent/20 bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
             {analysis
-              ? `${trend.source_count} independent source${trend.source_count === 1 ? "" : "s"} · ${trend.source_freshness} evidence.`
+              ? trend.evidence_summary
               : "No analysis yet. Select Analyze now to calculate these scores from the available sources."}
           </div>
         </aside>
@@ -262,7 +262,7 @@ export function TrendDetail({ slug }: { slug: string }) {
             <p className="max-w-4xl text-sm leading-6 text-foreground">{trend.action_summary}</p>
             <div className="grid gap-2 sm:grid-cols-3">
               <DecisionMetric label="Opportunity" value={trend.opportunity_score} />
-              <DecisionMetric label="Confidence" value={trend.confidence_score} />
+              <DecisionMetric label="Evidence" value={trend.evidence_score} />
               <DecisionMetric label="Sources" value={trend.source_count} suffix="" />
             </div>
           </CardContent>

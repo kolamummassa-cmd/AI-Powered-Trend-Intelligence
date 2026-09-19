@@ -282,6 +282,19 @@ TIKTOK_RESEARCH_TOKEN = env("TIKTOK_RESEARCH_TOKEN", default="")
 INSTAGRAM_ACCESS_TOKEN = env("INSTAGRAM_ACCESS_TOKEN", default="")
 INSTAGRAM_BUSINESS_ACCOUNT_ID = env("INSTAGRAM_BUSINESS_ACCOUNT_ID", default="")
 
+# RSS is TrendJack Hunter's discovery layer, so old archive entries must not
+# become trends. The adapter rejects them before article extraction/storage.
+RSS_SIGNAL_MAX_AGE_HOURS = env.int("RSS_SIGNAL_MAX_AGE_HOURS", default=72)
+RSS_REQUIRE_PUBLISHED_AT = env.bool("RSS_REQUIRE_PUBLISHED_AT", default=True)
+
+# Optional live corroboration, performed only when a user requests analysis.
+# Serper's news endpoint is used instead of scraping search-result pages. When
+# no key is configured, the evidence service remains fully functional using
+# the recent RSS evidence already in TrendJack Hunter.
+SERPER_API_KEY = env("SERPER_API_KEY", default="")
+WEB_VERIFICATION_MAX_AGE_HOURS = env.int("WEB_VERIFICATION_MAX_AGE_HOURS", default=72)
+WEB_VERIFICATION_CACHE_TTL_SECONDS = env.int("WEB_VERIFICATION_CACHE_TTL_SECONDS", default=3600)
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------

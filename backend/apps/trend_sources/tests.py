@@ -1,3 +1,4 @@
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -46,6 +47,7 @@ class TestRSSAdapter:
                     "title": "Kenya's Fintech Boom",
                     "link": "https://example.com/post-1",
                     "summary": "A summary.",
+                    "published_parsed": time.gmtime(),
                     "author": "Jane",
                     "tags": [],
                 }
@@ -71,6 +73,7 @@ class TestRSSAdapter:
                     "title": "Cornelis raises funding",
                     "link": "https://example.com/post-1",
                     "summary": "A later RSS excerpt.",
+                    "published_parsed": time.gmtime(),
                     "tags": [],
                 }
             ],
@@ -78,7 +81,8 @@ class TestRSSAdapter:
         mock_get.return_value = MagicMock(
             text=(
                 '<html><head><meta property="og:description" '
-                'content="Cornelis creates networking technology for AI chips and raised $205 million." />'
+                'content="Cornelis creates networking technology for AI chips and raised '
+                '$205 million." />'
                 "</head></html>"
             ),
             raise_for_status=lambda: None,
@@ -104,6 +108,7 @@ class TestRSSAdapter:
                     "title": "A source with no description",
                     "link": "https://example.com/post-2",
                     "summary": "",
+                    "published_parsed": time.gmtime(),
                     "tags": [],
                 }
             ],
@@ -120,6 +125,22 @@ class TestRSSAdapter:
         adapter = RSSAdapter({})
         with pytest.raises(ValueError):
             adapter.fetch_signals()
+
+    @patch("apps.trend_sources.adapters.feedparser.parse")
+    def test_rejects_old_and_undated_feed_entries_before_storage(self, mock_parse, settings):
+        settings.RSS_SIGNAL_MAX_AGE_HOURS = 72
+        old = time.gmtime(time.time() - 73 * 60 * 60)
+        mock_parse.return_value = MagicMock(
+            bozo=False,
+            entries=[
+                {"id": "old", "title": "Old story", "published_parsed": old},
+                {"id": "undated", "title": "Undated story"},
+            ],
+        )
+
+        signals = RSSAdapter({"feed_url": "https://example.com/feed"}).fetch_signals()
+
+        assert signals == []
 
 
 class TestRedditAdapter:

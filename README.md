@@ -65,6 +65,32 @@ python manage.py poll_now         # fetches from every active platform immediate
 `REDDIT_CLIENT_SECRET` (a "script" app at reddit.com/prefs/apps) to be set in `.env`;
 Google Trends and RSS work with no credentials.
 
+### Freshness and evidence verification
+
+RSS is the discovery layer, not an archive. Entries without a reliable date,
+or older than 72 hours, are discarded by default before they are stored. Tune
+the window only when necessary:
+
+```bash
+RSS_SIGNAL_MAX_AGE_HOURS=72
+RSS_REQUIRE_PUBLISHED_AT=True
+```
+
+When a user requests an analysis, TrendJack Hunter calculates an evidence
+score from source count, configured source credibility, freshness, and
+platform diversity. To add live news corroboration, create a Serper key and
+set this on the server:
+
+```bash
+SERPER_API_KEY=your_serper_key
+WEB_VERIFICATION_MAX_AGE_HOURS=72
+```
+
+Live verification is optional and happens only for an analysis request; it
+does not run during RSS polling or block an analysis if the provider is down.
+Without the key, the evidence score remains transparent and uses only the
+fresh source evidence already collected by the product.
+
 ### TrendJack Hunter YouTube and X feeds
 
 `seed_platforms` also creates four disabled, TrendJack Hunter-focused social feeds: two

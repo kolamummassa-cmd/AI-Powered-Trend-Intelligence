@@ -37,6 +37,8 @@ export interface TrendListItem {
   estimated_lifespan: string;
   trend_score: number | null;
   opportunity_score: number | null;
+  evidence_score: number | null;
+  verified_source_count: number;
   confidence_score: number | null;
   analyzed_at: string | null;
   first_detected_at: string;
@@ -89,6 +91,10 @@ export interface TrendAnalysis {
   ai_relevance: string;
   trend_score: number;
   opportunity_score: number;
+  evidence_score: number;
+  evidence_source_count: number;
+  verified_source_count: number;
+  evidence_summary: string;
   confidence_score: number;
   content_creator_score: number;
   founder_score: number;
@@ -122,6 +128,7 @@ export interface TrendDetail extends TrendListItem {
   what_is_happening: string;
   suggested_content_angle: string;
   action_summary: string;
+  evidence_summary: string;
   created_at: string;
 }
 

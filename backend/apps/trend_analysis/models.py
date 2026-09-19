@@ -33,6 +33,12 @@ class TrendAnalysis(BaseModel):
 
     trend_score = models.PositiveSmallIntegerField()
     opportunity_score = models.PositiveSmallIntegerField()
+    # Unlike confidence_score (the AI's interpretation confidence), this is
+    # deterministic and derived from observable, dated evidence.
+    evidence_score = models.PositiveSmallIntegerField(default=0)
+    evidence_source_count = models.PositiveSmallIntegerField(default=0)
+    verified_source_count = models.PositiveSmallIntegerField(default=0)
+    evidence_summary = models.TextField(default="")
     confidence_score = models.PositiveSmallIntegerField()
 
     # Audience relevance (0-100 each) + the best_audience derived from
