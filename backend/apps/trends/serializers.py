@@ -191,6 +191,7 @@ class TrendDetailSerializer(TrendListSerializer):
     why_it_matters = serializers.SerializerMethodField()
     suggested_content_angle = serializers.SerializerMethodField()
     action_summary = serializers.SerializerMethodField()
+    evidence_summary = serializers.SerializerMethodField()
 
     class Meta(TrendListSerializer.Meta):
         fields = TrendListSerializer.Meta.fields + (
